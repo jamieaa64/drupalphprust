@@ -1,0 +1,168 @@
+diff --git a/php-rust/crates/php-runtime/src/bytecode.rs b/php-rust/crates/php-runtime/src/bytecode.rs
+--- a/php-rust/crates/php-runtime/src/bytecode.rs
++++ b/php-rust/crates/php-runtime/src/bytecode.rs
+@@ -498,7 +498,7 @@
+     /// static call): when the source is **not** a [`Zval::Ref`] it raises the
+     /// "Only variables should be assigned by reference" notice before copying. The
+     /// free-function path emits that notice at compile time instead.
+-    BindRefToChecked { base: FieldBase, steps: Rc<[FieldStep]> },
++    BindRefToChecked { base: FieldBase, steps: Rc<[FieldStep]>, context: u8 },
+     /// `[v] -> [v']` — if the top is a [`Zval::Ref`], replace it with a clone of
+     /// its referent; otherwise leave it untouched (REF-4b). Emitted after a call
+     /// to a `function &f()` used in a *value* context, so the reference it returns
+diff --git a/php-rust/crates/php-runtime/src/compile/assign.rs b/php-rust/crates/php-runtime/src/compile/assign.rs
+--- a/php-rust/crates/php-runtime/src/compile/assign.rs
++++ b/php-rust/crates/php-runtime/src/compile/assign.rs
+@@ -371,7 +371,7 @@
+         if matches!(call.kind, ExprKind::StaticCall { .. } | ExprKind::StaticCallDyn { .. }) {
+             let (base, steps) = self.field_path(target)?;
+             self.expr(call)?;
+-            self.emit(Op::BindRefToChecked { base, steps: steps.into() });
++            self.emit(Op::BindRefToChecked { base, steps: steps.into(), context: 0 });
+             return Ok(());
+         }
+         // `$t = &$obj->m(...)`: a method's by-reference-ness is only known at run
+@@ -394,7 +394,7 @@
+             // `deref: false`: the bind needs the raw `Ref` a `&m()` returns —
+             // the callee's `RET_DEREF` must stay clear (WP-53).
+             self.emit_method_call(method, args, named, recv_class, false)?;
+-            self.emit(Op::BindRefToChecked { base, steps: steps.into() });
++            self.emit(Op::BindRefToChecked { base, steps: steps.into(), context: 0 });
+             return Ok(());
+         }
+         // `$t = &$f(...)` / `$t = &(expr)(...)`: like a method call, the callee's
+@@ -412,7 +412,7 @@
+                 }
+                 self.emit(Op::CallValue { argc: args.len() as u32 });
+             }
+-            self.emit(Op::BindRefToChecked { base, steps: steps.into() });
++            self.emit(Op::BindRefToChecked { base, steps: steps.into(), context: 0 });
+             return Ok(());
+         }
+         let ExprKind::Call { name, fallback, args, named } = &call.kind else {
+@@ -432,7 +432,7 @@
+             // result when binding, as for a dynamic callable or method.
+             let (base, steps) = self.field_path(target)?;
+             self.call(name, fallback.as_deref(), args, named)?;
+-            self.emit(Op::BindRefToChecked { base, steps: steps.into() });
++            self.emit(Op::BindRefToChecked { base, steps: steps.into(), context: 0 });
+             return Ok(());
+         };
+         let callee = &self.ctx.funcs[idx];
+diff --git a/php-rust/crates/php-runtime/src/compile/mod.rs b/php-rust/crates/php-runtime/src/compile/mod.rs
+--- a/php-rust/crates/php-runtime/src/compile/mod.rs
++++ b/php-rust/crates/php-runtime/src/compile/mod.rs
+@@ -1289,20 +1289,27 @@
+                 self.pending_gotos.push((name.clone(), site, self.scope_path.clone()));
+             }
+             StmtKind::Return(opt) => {
+-                // A plain `return <expr>;` (or bare `return;`) inside a `function
+-                // &f()` means the operand is a non-lvalue: PHP raises a notice and
+-                // returns by value (D-13.4). The condition is known at compile time.
+-                if self.returns_ref {
+-                    let k = self.konst(Const::Str(php_types::PhpStr::new(
+-                        &b"Only variable references should be returned by reference"[..],
+-                    )));
+-                    self.emit(Op::EmitNotice(k));
+-                }
+-                match opt {
+-                    Some(e) => self.expr(e)?,
+-                    None => {
+-                        let null = self.konst(Const::Null);
+-                        self.emit(Op::PushConst(null));
++                let reference_call = self.returns_ref && opt.as_ref().is_some_and(|e| matches!(e.kind,
++                    ExprKind::MethodCall { nullsafe: false, .. } | ExprKind::StaticCall { .. } | ExprKind::StaticCallDyn { .. }));
++                if reference_call {
++                    let temp = self.alloc_temp();
++                    let place = Place { base: PlaceBase::Local(temp), steps: Vec::new() };
++                    self.assign_ref_call(&place, opt.as_ref().expect("reference call"))?;
++                    if let Some(Op::BindRefToChecked { context, .. }) = self.ops.last_mut() { *context = 1; }
++                    self.emit(Op::Pop);
++                    self.emit(Op::PushRef(temp));
++                    self.clear_temp_binding(temp);
++                    self.free_temp();
++                } else {
++                    if self.returns_ref {
++                        let k = self.konst(Const::Str(php_types::PhpStr::new(
++                            &b"Only variable references should be returned by reference"[..],
++                        )));
++                        self.emit(Op::EmitNotice(k));
++                    }
++                    match opt {
++                        Some(e) => self.expr(e)?,
++                        None => { let null = self.konst(Const::Null); self.emit(Op::PushConst(null)); }
+                     }
+                 }
+                 // A `return` inside a try-with-finally runs the (innermost) finally
+diff --git a/php-rust/crates/php-runtime/src/compile/expr.rs b/php-rust/crates/php-runtime/src/compile/expr.rs
+--- a/php-rust/crates/php-runtime/src/compile/expr.rs
++++ b/php-rust/crates/php-runtime/src/compile/expr.rs
+@@ -1655,6 +1655,18 @@
+                             self.emit(Op::MakeRef { base, steps: steps.into() });
+                             continue;
+                         }
++                        if matches!(a.kind, ExprKind::MethodCall { nullsafe: false, .. }
++                            | ExprKind::StaticCall { .. } | ExprKind::StaticCallDyn { .. }) {
++                            let temp = self.alloc_temp();
++                            let target = Place { base: PlaceBase::Local(temp), steps: Vec::new() };
++                            self.assign_ref_call(&target, a)?;
++                            if let Some(Op::BindRefToChecked { context, .. }) = self.ops.last_mut() { *context = 2; }
++                            self.emit(Op::Pop);
++                            self.emit(Op::PushRef(temp));
++                            self.clear_temp_binding(temp);
++                            self.free_temp();
++                            continue;
++                        }
+                         let msg = if in_pack {
+                             format!(
+                                 "{}(): Argument #{} could not be passed by reference",
+diff --git a/php-rust/crates/php-runtime/src/vm/liveness.rs b/php-rust/crates/php-runtime/src/vm/liveness.rs
+--- a/php-rust/crates/php-runtime/src/vm/liveness.rs
++++ b/php-rust/crates/php-runtime/src/vm/liveness.rs
+@@ -244,7 +244,7 @@
+                 DimBase::Superglobal(_) => {}
+             }
+         }
+-        Op::BindRefTo { base, steps } | Op::BindRefToChecked { base, steps } => {
++        Op::BindRefTo { base, steps } | Op::BindRefToChecked { base, steps, .. } => {
+             // Base senza step: sovrascritta per intero (def). Con step: si
+             // naviga DENTRO il contenitore tenuto dallo slot (uso).
+             if steps.is_empty() {
+diff --git a/php-rust/crates/php-runtime/src/vm/run.rs b/php-rust/crates/php-runtime/src/vm/run.rs
+--- a/php-rust/crates/php-runtime/src/vm/run.rs
++++ b/php-rust/crates/php-runtime/src/vm/run.rs
+@@ -3235,7 +3235,7 @@
+                     }
+                     self.frames[top].stack.push(value);
+                 }
+-                Op::BindRefToChecked { base, steps } => {
++                Op::BindRefToChecked { base, steps, context } => {
+                     // `$t = &m()` for a method/static call: the callee's by-ref-ness
+                     // is only known now. A non-`Ref` source means the callee did not
+                     // return by reference — raise the notice, then bind a copy.
+@@ -3250,7 +3250,11 @@
+                                 Zval::Ref(rc) => rc,
+                                 other => {
+                                     self.diags.push(Diag::Notice(
+-                                        "Only variables should be assigned by reference".to_string(),
++                                        match context {
++                                    1 => "Only variable references should be returned by reference",
++                                    2 => "Only variables should be passed by reference",
++                                    _ => "Only variables should be assigned by reference",
++                                }.to_string(),
+                                     ));
+                                     let line = self.cur_line(top);
+                                     self.flush_diags(line)?;
+@@ -3272,7 +3276,11 @@
+                         Zval::Ref(rc) => rc,
+                         other => {
+                             self.diags.push(Diag::Notice(
+-                                "Only variables should be assigned by reference".to_string(),
++                                match context {
++                                    1 => "Only variable references should be returned by reference",
++                                    2 => "Only variables should be passed by reference",
++                                    _ => "Only variables should be assigned by reference",
++                                }.to_string(),
+                             ));
+                             let line = self.cur_line(top);
+                             self.flush_diags(line)?;

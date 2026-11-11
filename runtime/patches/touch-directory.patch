@@ -1,0 +1,31 @@
+diff --git a/php-rust/crates/php-builtins/src/file.rs b/php-rust/crates/php-builtins/src/file.rs
+--- a/php-rust/crates/php-builtins/src/file.rs
++++ b/php-rust/crates/php-builtins/src/file.rs
+@@ -2201,6 +2201,7 @@
+ /// uses now; a null `$atime` mirrors `$mtime` (PHP semantics).
+ pub fn touch(argv: &[Zval], ctx: &mut Ctx) -> Result<Zval, PhpError> {
+     let p = arg_os_path(argv, ctx);
++    if !std::path::Path::new(&p).exists() {
+     if let Err(e) = std::fs::OpenOptions::new()
+         .write(true)
+         .create(true)
+@@ -2214,6 +2215,7 @@
+         )));
+         return Ok(Zval::Bool(false));
+     }
++    }
+     let now = std::time::SystemTime::now()
+         .duration_since(std::time::UNIX_EPOCH)
+         .map(|d| d.as_secs() as i64)
+@@ -2226,7 +2228,10 @@
+         Some(v) if !matches!(v, Zval::Null) => convert::to_long_cast(v, ctx.diags),
+         _ => mtime,
+     };
+-    let _ = set_times(p.as_os_str(), atime, mtime);
++    if let Err(e) = set_times(p.as_os_str(), atime, mtime) {
++        ctx.diags.push(Diag::Warning(format!("touch(): Utime failed: {}", strerror(&e))));
++        return Ok(Zval::Bool(false));
++    }
+     Ok(Zval::Bool(true))
+ }
+ 

@@ -1,0 +1,320 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/coroutines.rs b/php-rust/crates/php-runtime/src/vm/coroutines.rs
+index 025f42d..c255c3a 100644
+--- a/php-rust/crates/php-runtime/src/vm/coroutines.rs
++++ b/php-rust/crates/php-runtime/src/vm/coroutines.rs
+@@ -1,7 +1,60 @@
+ //! VM coroutines logic, extracted from vm/mod.rs (no semantic change).
+ use super::*;
+ 
++pub(super) enum NativeFiberCall {
++    Unhandled,
++    Complete,
++    Suspended(Zval),
++}
++
+ impl<'m> Vm<'m> {
++    /// Native Fiber statics must work for both linked and dynamic class calls.
++    pub(super) fn native_fiber_static(
++        &mut self, top: usize, class: ClassId, method: &[u8],
++        args: &mut Vec<Zval>, named: &[(Box<[u8]>, Zval)],
++    ) -> Result<NativeFiberCall, PhpError> {
++        if self.fiber_class_id != Some(class) {
++            return Ok(NativeFiberCall::Unhandled);
++        }
++        if method.eq_ignore_ascii_case(b"getcurrent") {
++            if let Some((name, _)) = named.first() {
++                return Err(PhpError::Error(format!("Unknown named parameter ${}", String::from_utf8_lossy(name))));
++            }
++            if !args.is_empty() {
++                return Err(PhpError::ArgumentCountError(format!("Fiber::getCurrent() expects exactly 0 arguments, {} given", args.len())));
++            }
++            let cur = self.fiber_stack.last().map(|c| c.obj.clone()).unwrap_or(Zval::Null);
++            self.frames[top].stack.push(cur);
++            return Ok(NativeFiberCall::Complete);
++        }
++        if !method.eq_ignore_ascii_case(b"suspend") {
++            return Ok(NativeFiberCall::Unhandled);
++        }
++        if args.len() > 1 {
++            return Err(PhpError::ArgumentCountError(format!("Fiber::suspend() expects at most 1 argument, {} given", args.len())));
++        }
++        let (id, baseline) = match self.fiber_stack.last() {
++            Some(c) => (c.id, c.baseline),
++            None => return Err(PhpError::Error("Cannot suspend outside of a fiber".to_string())),
++        };
++        if args.iter().any(|a| matches!(a, Zval::ArgPlace(_))) {
++            self.materialize_arg_places(top, args, None)?;
++        }
++        let mut value = args.first().map(|v| v.deref_clone()).unwrap_or(Zval::Null);
++        for (name, v) in named {
++            if &name[..] != b"value" {
++                return Err(PhpError::Error(format!("Unknown named parameter ${}", String::from_utf8_lossy(name))));
++            }
++            if !args.is_empty() {
++                return Err(PhpError::Error("Named parameter $value overwrites previous argument".to_string()));
++            }
++            value = v.deref_clone();
++        }
++        let parked = self.frames.split_off(baseline);
++        self.fibers.get_mut(&id).expect("running fiber state").parked = parked;
++        Ok(NativeFiberCall::Suspended(value))
++    }
++
+     /// Build a `Generator` handle for a freshly-bound generator-body `frame`
+     /// (GEN): park the frame under a fresh id and return the `Zval::Generator` the
+     /// call expression evaluates to. The body does not run until the generator is
+diff --git a/php-rust/crates/php-runtime/src/vm/run.rs b/php-rust/crates/php-runtime/src/vm/run.rs
+index 89845fa..a4a1591 100644
+--- a/php-rust/crates/php-runtime/src/vm/run.rs
++++ b/php-rust/crates/php-runtime/src/vm/run.rs
+@@ -5671,11 +5671,16 @@ impl<'m> super::Vm<'m> {
+                     if self.methodcall_fast(top, n, ic, *deref)? {
+                         continue;
+                     }
+-                    let args = self.pop_keys(top, *argc); // source order
++                    let mut args = self.pop_keys(top, *argc); // source order
+                     let recv = self.frames[top].stack.pop().expect("MethodCall receiver");
+                     // V5 (S-119 treno-2): il frame vuole l'handle POSSEDUTO —
+                     // recv lo è già (pop); il clone serve solo a un Ref.
+                     let this = if matches!(recv, Zval::Ref(_)) { recv.deref_clone() } else { recv };
++                    match self.native_fiber_static(top, object_class_id(&this).unwrap_or(usize::MAX), &method, &mut args, &[])? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
++                    }
+                     self.method_call(top, this, &method, args, Some(&ic), *deref)?;
+                 }
+                 Op::ThisMethodCall { method, ic } => {
+@@ -5722,6 +5727,11 @@ impl<'m> super::Vm<'m> {
+                             ))
+                         }
+                     };
++                    match self.native_fiber_static(top, object_class_id(&this).unwrap_or(usize::MAX), &method, &mut Vec::new(), &[])? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
++                    }
+                     self.method_call(top, this, &method, Vec::new(), Some(&ic), true)?;
+                 }
+                 Op::MethodCallArgs { method, deref } => {
+@@ -5729,9 +5739,14 @@ impl<'m> super::Vm<'m> {
+                     // values of a runtime array (the receiver sits beneath it);
+                     // string keys bind as named arguments (PHP 8.1).
+                     let argsval = self.frames[top].stack.pop().expect("MethodCallArgs array");
+-                    let (args, named) = split_args_from_array_value(argsval);
++                    let (mut args, named) = split_args_from_array_value(argsval);
+                     let recv = self.frames[top].stack.pop().expect("MethodCallArgs receiver");
+                     let this = recv.deref_clone();
++                    match self.native_fiber_static(top, object_class_id(&this).unwrap_or(usize::MAX), &method, &mut args, &named)? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
++                    }
+                     if named.is_empty() {
+                         self.method_call(top, this, &method, args, None, *deref)?;
+                     } else {
+@@ -5743,9 +5758,14 @@ impl<'m> super::Vm<'m> {
+                     // args beneath it, the receiver at the bottom (step 51).
+                     let nameval = self.frames[top].stack.pop().expect("MethodCallDynamic name");
+                     let method = convert::to_zstr(&nameval, &mut self.diags).as_bytes().to_vec();
+-                    let args = self.pop_keys(top, *argc);
++                    let mut args = self.pop_keys(top, *argc);
+                     let recv = self.frames[top].stack.pop().expect("MethodCallDynamic receiver");
+                     let this = recv.deref_clone();
++                    match self.native_fiber_static(top, object_class_id(&this).unwrap_or(usize::MAX), &method, &mut args, &[])? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
++                    }
+                     // Always value context: `$x =& $o->$m()` is a compile error.
+                     self.method_call(top, this, &method, args, None, true)?;
+                 }
+@@ -5755,9 +5775,14 @@ impl<'m> super::Vm<'m> {
+                     let nameval = self.frames[top].stack.pop().expect("MethodCallDynamicArgs name");
+                     let method = convert::to_zstr(&nameval, &mut self.diags).as_bytes().to_vec();
+                     let argsval = self.frames[top].stack.pop().expect("MethodCallDynamicArgs array");
+-                    let (args, named) = split_args_from_array_value(argsval);
++                    let (mut args, named) = split_args_from_array_value(argsval);
+                     let recv = self.frames[top].stack.pop().expect("MethodCallDynamicArgs receiver");
+                     let this = recv.deref_clone();
++                    match self.native_fiber_static(top, object_class_id(&this).unwrap_or(usize::MAX), &method, &mut args, &named)? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
++                    }
+                     // Always value context (see `MethodCallDynamic`).
+                     if named.is_empty() {
+                         self.method_call(top, this, &method, args, None, true)?;
+@@ -5771,9 +5796,14 @@ impl<'m> super::Vm<'m> {
+                     let named_vals = self.pop_keys(top, names.len() as u32);
+                     let named: Vec<(Box<[u8]>, Zval)> =
+                         names.iter().cloned().zip(named_vals).collect();
+-                    let pos = self.pop_keys(top, *positional);
++                    let mut pos = self.pop_keys(top, *positional);
+                     let recv = self.frames[top].stack.pop().expect("MethodCallNamed receiver");
+                     let this = recv.deref_clone();
++                    match self.native_fiber_static(top, object_class_id(&this).unwrap_or(usize::MAX), &method, &mut pos, &named)? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
++                    }
+                     self.dispatch_instance_call_named(top, this, &method, pos, named, *deref)?;
+                 }
+                 Op::InvokeMethod { class, method_idx, argc } => {
+@@ -5862,38 +5892,10 @@ impl<'m> super::Vm<'m> {
+                 Op::StaticCall { target, method, forwarding, argc, ic } => {
+                     let mut args = self.pop_keys(top, *argc);
+                     let start = self.target_class_id(*target, top)?;
+-                    // `Fiber::suspend` / `Fiber::getCurrent` are native static
+-                    // dispatch (GEN-4), handled before normal method resolution.
+-                    if self.fiber_class_id == Some(start) {
+-                        if method.eq_ignore_ascii_case(b"suspend") {
+-                            let (id, baseline) = match self.fiber_stack.last() {
+-                                Some(c) => (c.id, c.baseline),
+-                                None => {
+-                                    return Err(PhpError::Error(
+-                                        "Cannot suspend outside of a fiber".to_string(),
+-                                    ))
+-                                }
+-                            };
+-                            // Decay a reference pushed by a dynamic call (SEND_VAR_EX);
+-                            // a deferred place argument reads by value (native callee).
+-                            if args.iter().any(|a| matches!(a, Zval::ArgPlace(_))) {
+-                                self.materialize_arg_places(top, &mut args, None)?;
+-                            }
+-                            let value = args.into_iter().next().map(decay_arg).unwrap_or(Zval::Null);
+-                            // Park the whole fiber segment; it is restored by resume.
+-                            let parked = self.frames.split_off(baseline);
+-                            self.fibers.get_mut(&id).expect("running fiber state").parked = parked;
+-                            return Ok(RunExit::Suspended { value });
+-                        }
+-                        if method.eq_ignore_ascii_case(b"getcurrent") {
+-                            let cur = self
+-                                .fiber_stack
+-                                .last()
+-                                .map(|c| c.obj.clone())
+-                                .unwrap_or(Zval::Null);
+-                            self.frames[top].stack.push(cur);
+-                            continue;
+-                        }
++                    match self.native_fiber_static(top, start, &method, &mut args, &[])? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
+                     }
+                     self.dispatch_static_call(top, start, &method, *forwarding, args, Vec::new(), Some(&ic))?;
+                 }
+@@ -5972,33 +5974,48 @@ impl<'m> super::Vm<'m> {
+                     // Spread / named `C::m(...$a)` / `C::m(name: …)`: args from a
+                     // runtime array — integer keys positional, string keys named.
+                     let argsval = self.frames[top].stack.pop().expect("StaticCallArgs array");
+-                    let (args, named) = split_args_from_array_value(argsval);
++                    let (mut args, named) = split_args_from_array_value(argsval);
+                     let start = self.target_class_id(*target, top)?;
++                    match self.native_fiber_static(top, start, &method, &mut args, &named)? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
++                    }
+                     self.dispatch_static_call(top, start, &method, *forwarding, args, named, None)?;
+                 }
+                 Op::StaticCallDynamic { method, argc } => {
+                     // `$cls::m()` (PAR): args are on top, the class reference beneath.
+-                    let args = self.pop_keys(top, *argc);
++                    let mut args = self.pop_keys(top, *argc);
+                     let classval =
+                         self.frames[top].stack.pop().expect("StaticCallDynamic class");
+                     let start = self.resolve_dynamic_class(&classval)?;
+                     // A dynamic class is non-forwarding, like a named class.
++                    match self.native_fiber_static(top, start, &method, &mut args, &[])? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
++                    }
+                     self.dispatch_static_call(top, start, &method, false, args, Vec::new(), None)?;
+                 }
+                 Op::StaticCallDynamicArgs { method } => {
+                     // Spread `$cls::m(...$a)` (Session A): args array on top, the
+                     // class reference beneath; string keys bind as named (PHP 8.1).
+                     let argsval = self.frames[top].stack.pop().expect("StaticCallDynamicArgs array");
+-                    let (args, named) = split_args_from_array_value(argsval);
++                    let (mut args, named) = split_args_from_array_value(argsval);
+                     let classval =
+                         self.frames[top].stack.pop().expect("StaticCallDynamicArgs class");
+                     let start = self.resolve_dynamic_class(&classval)?;
++                    match self.native_fiber_static(top, start, &method, &mut args, &named)? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
++                    }
+                     self.dispatch_static_call(top, start, &method, false, args, named, None)?;
+                 }
+                 Op::StaticCallDynamicMethod { argc } => {
+                     // `$cls::$m()`: method name on top, then args, then the class ref.
+                     let mval = self.frames[top].stack.pop().expect("StaticCallDynamicMethod name");
+-                    let args = self.pop_keys(top, *argc);
++                    let mut args = self.pop_keys(top, *argc);
+                     let classval =
+                         self.frames[top].stack.pop().expect("StaticCallDynamicMethod class");
+                     // PHP validates the class before the method name: `$a::$b()` with
+@@ -6006,6 +6023,11 @@ impl<'m> super::Vm<'m> {
+                     let start = self.resolve_dynamic_class(&classval)?;
+                     let method = dyn_method_name(&mval)?;
+                     // A dynamic class is non-forwarding, like a named static call.
++                    match self.native_fiber_static(top, start, &method, &mut args, &[])? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
++                    }
+                     self.dispatch_static_call(top, start, &method, false, args, Vec::new(), None)?;
+                 }
+                 Op::StaticCallDynamicMethodArgs => {
+@@ -6015,12 +6037,17 @@ impl<'m> super::Vm<'m> {
+                         self.frames[top].stack.pop().expect("StaticCallDynamicMethodArgs name");
+                     let argsval =
+                         self.frames[top].stack.pop().expect("StaticCallDynamicMethodArgs array");
+-                    let (args, named) = split_args_from_array_value(argsval);
++                    let (mut args, named) = split_args_from_array_value(argsval);
+                     let classval =
+                         self.frames[top].stack.pop().expect("StaticCallDynamicMethodArgs class");
+                     // PHP validates the class before the method name.
+                     let start = self.resolve_dynamic_class(&classval)?;
+                     let method = dyn_method_name(&mval)?;
++                    match self.native_fiber_static(top, start, &method, &mut args, &named)? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
++                    }
+                     self.dispatch_static_call(top, start, &method, false, args, named, None)?;
+                 }
+                 Op::StaticCallTargetDynamicMethodArgs { target, forwarding } => {
+@@ -6034,8 +6061,13 @@ impl<'m> super::Vm<'m> {
+                         .stack
+                         .pop()
+                         .expect("StaticCallTargetDynamicMethodArgs array");
+-                    let (args, named) = split_args_from_array_value(argsval);
++                    let (mut args, named) = split_args_from_array_value(argsval);
+                     let start = self.target_class_id(*target, top)?;
++                    match self.native_fiber_static(top, start, &method, &mut args, &named)? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
++                    }
+                     self.dispatch_static_call(top, start, &method, *forwarding, args, named, None)?;
+                 }
+                 Op::StaticCallTargetDynamicMethod { target, forwarding, argc } => {
+@@ -6046,8 +6078,13 @@ impl<'m> super::Vm<'m> {
+                         .pop()
+                         .expect("StaticCallTargetDynamicMethod name");
+                     let method = dyn_method_name(&mval)?;
+-                    let args = self.pop_keys(top, *argc);
++                    let mut args = self.pop_keys(top, *argc);
+                     let start = self.target_class_id(*target, top)?;
++                    match self.native_fiber_static(top, start, &method, &mut args, &[])? {
++                        super::coroutines::NativeFiberCall::Unhandled => {},
++                        super::coroutines::NativeFiberCall::Complete => continue,
++                        super::coroutines::NativeFiberCall::Suspended(value) => return Ok(RunExit::Suspended { value }),
++                    }
+                     self.dispatch_static_call(top, start, &method, *forwarding, args, Vec::new(), None)?;
+                 }
+                 Op::ClassConstDynamic => {

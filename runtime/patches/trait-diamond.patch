@@ -1,0 +1,58 @@
+diff --git a/php-rust/crates/php-runtime/src/hir.rs b/php-rust/crates/php-runtime/src/hir.rs
+index ea56b3e..18ec170 100644
+--- a/php-rust/crates/php-runtime/src/hir.rs
++++ b/php-rust/crates/php-runtime/src/hir.rs
+@@ -411,6 +411,9 @@ pub struct PropDecl {
+ /// to and the OOP modifiers.
+ #[derive(Debug, Clone, PartialEq)]
+ pub struct MethodDecl {
++    /// Original trait and method identity, retained through nested composition.
++    /// Reusing the same implementation through two paths is not a collision.
++    pub trait_origin: Option<(Box<[u8]>, Box<[u8]>)>,
+     pub visibility: Visibility,
+     pub is_static: bool,
+     /// `final` method — cannot be overridden by a subclass (enforced at lowering;
+diff --git a/php-rust/crates/php-runtime/src/lower/class.rs b/php-rust/crates/php-runtime/src/lower/class.rs
+index 112930f..70e0fec 100644
+--- a/php-rust/crates/php-runtime/src/lower/class.rs
++++ b/php-rust/crates/php-runtime/src/lower/class.rs
+@@ -277,7 +277,7 @@ impl<'f> Lowerer<'f> {
+         }
+ 
+         // --- flatten members, applying exclusions + collision detection ---
+-        let mut from_trait: HashMap<Vec<u8>, (Box<[u8]>, Box<[u8]>)> = HashMap::new();
++        let mut from_trait: HashMap<Vec<u8>, (Box<[u8]>, Box<[u8]>, MethodDecl)> = HashMap::new();
+         let mut seen_p = own_p.clone();
+         let mut seen_s = own_s.clone();
+         let mut seen_c = own_c.clone();
+@@ -316,7 +316,12 @@ impl<'f> Lowerer<'f> {
+                     if excluded.contains(&(tkey.clone(), m_lc.clone())) || own_m.contains(&m_lc) {
+                         continue;
+                     }
+-                    if let Some((a_trait, a_method)) = from_trait.get(&m_lc) {
++                    if let Some((a_trait, a_method, previous)) = from_trait.get(&m_lc) {
++                        if m.trait_origin.is_some() && m.trait_origin == previous.trait_origin
++                            && m.visibility == previous.visibility && m.is_static == previous.is_static
++                            && m.is_final == previous.is_final {
++                            continue;
++                        }
+                         return Err(LowerError::Fatal {
+                             message: format!(
+                                 "Trait method {}::{} has not been applied as {}::{}, \
+@@ -331,7 +336,7 @@ impl<'f> Lowerer<'f> {
+                             line,
+                         });
+                     }
+-                    from_trait.insert(m_lc, (torig.clone(), m.decl.name.clone()));
++                    from_trait.insert(m_lc, (torig.clone(), m.decl.name.clone(), m.clone()));
+                     let mut m = m.clone();
+                     m.decl.closure_shift = mshift;
+                     methods.push(m);
+@@ -1711,6 +1716,7 @@ impl<'f> Lowerer<'f> {
+         let attributes = self.lower_attributes(&method.attribute_lists, line)?;
+         let file = self.unit_file();
+         Ok(MethodDecl {
++            trait_origin: self.cur_trait.as_ref().map(|t| (join_ns(&self.cur_namespace, t).into(), name.clone())),
+             visibility,
+             is_static,
+             is_final,

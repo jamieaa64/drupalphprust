@@ -1,0 +1,98 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/calls.rs b/php-rust/crates/php-runtime/src/vm/calls.rs
+index 3515c74..3a7b68d 100644
+--- a/php-rust/crates/php-runtime/src/vm/calls.rs
++++ b/php-rust/crates/php-runtime/src/vm/calls.rs
+@@ -1198,6 +1198,9 @@ impl<'m> Vm<'m> {
+                 // the namespaced-fallback path. Arguments are by value, exactly as the
+                 // compiled `Op::CallHostBuiltin` path passes them.
+                 if let Some(canon) = host_builtin_canonical(name) {
++                    if matches!(canon, b"call_user_func" | b"call_user_func_array") {
++                        return self.invoke_user_trampoline(canon, args);
++                    }
+                     let result = self.dispatch_host_builtin(canon, args)?;
+                     let top = self.frames.len() - 1;
+                     self.frames[top].stack.push(result);
+diff --git a/php-rust/crates/php-runtime/src/vm/host.rs b/php-rust/crates/php-runtime/src/vm/host.rs
+index c066820..4d9c885 100644
+--- a/php-rust/crates/php-runtime/src/vm/host.rs
++++ b/php-rust/crates/php-runtime/src/vm/host.rs
+@@ -1892,9 +1892,25 @@ impl<'m> super::Vm<'m> {
+             String::from_utf8_lossy(&cname)
+         )))
+     }
++    /// Install trampoline callbacks as VM frames, so Fiber suspension returns
++    /// to the main interpreter loop rather than crossing a Rust call stack.
++    pub(super) fn invoke_user_trampoline(&mut self, name: &[u8], args: Vec<Zval>) -> Result<(), PhpError> {
++        let (callee, argv) = if name.eq_ignore_ascii_case(b"call_user_func") {
++            self.prepare_call_user_func(args)?
++        } else {
++            self.prepare_call_user_func_array(args)?
++        };
++        let line = self.cur_line(self.frames.len() - 1);
++        self.flush_diags(line)?;
++        self.invoke_value(callee, argv)
++    }
+     /// `call_user_func($callable, ...$args)`: forward the remaining arguments by
+     /// value to the callable (mirrors `eval::ho_call_user_func`).
+     pub(super) fn ho_call_user_func(&mut self, args: Vec<Zval>) -> Result<Zval, PhpError> {
++        let (callee, argv) = self.prepare_call_user_func(args)?;
++        self.call_callable(callee, argv)
++    }
++    fn prepare_call_user_func(&mut self, args: Vec<Zval>) -> Result<(Zval, Vec<Zval>), PhpError> {
+         let mut it = args.into_iter();
+         let Some(callee) = it.next() else {
+             return Err(PhpError::ArgumentCountError(
+@@ -1905,12 +1921,16 @@ impl<'m> super::Vm<'m> {
+         let callee = callee.deref_clone();
+         // `call_user_func` always passes by value, so every by-ref parameter warns.
+         self.warn_trampoline_byref(&callee, argv.len(), &[])?;
+-        self.call_callable(callee, argv)
++        Ok((callee, argv))
+     }
+     /// `call_user_func_array($callable, $args)`: the second argument is an array
+     /// whose *values* become the positional arguments (string-keyed named
+     /// arguments are a scope-out, mirroring the evaluator).
+     pub(super) fn ho_call_user_func_array(&mut self, args: Vec<Zval>) -> Result<Zval, PhpError> {
++        let (callee, argv) = self.prepare_call_user_func_array(args)?;
++        self.call_callable(callee, argv)
++    }
++    fn prepare_call_user_func_array(&mut self, args: Vec<Zval>) -> Result<(Zval, Vec<Zval>), PhpError> {
+         if args.len() < 2 {
+             return Err(PhpError::ArgumentCountError(format!(
+                 "call_user_func_array() expects exactly 2 arguments, {} given",
+@@ -1940,7 +1960,7 @@ impl<'m> super::Vm<'m> {
+             }
+         };
+         self.warn_trampoline_byref(&callee, argv.len(), &arg_is_ref)?;
+-        self.call_callable(callee, argv)
++        Ok((callee, argv))
+     }
+     /// `array_map($callback, ...$arrays)` (Session C): a single array preserves
+     /// keys; several arrays re-index 0..max and pass one element from each per row
+diff --git a/php-rust/crates/php-runtime/src/vm/run.rs b/php-rust/crates/php-runtime/src/vm/run.rs
+index a4a1591..a32c8d7 100644
+--- a/php-rust/crates/php-runtime/src/vm/run.rs
++++ b/php-rust/crates/php-runtime/src/vm/run.rs
+@@ -3950,6 +3950,10 @@ impl<'m> super::Vm<'m> {
+                             String::from_utf8_lossy(&name)
+                         )));
+                     }
++                    if name.eq_ignore_ascii_case(b"call_user_func") || name.eq_ignore_ascii_case(b"call_user_func_array") {
++                        self.invoke_user_trampoline(name, args)?;
++                        continue;
++                    }
+                     let result = match f {
+                         Some(f) => {
+                             self.value_builtin_call(top, f, name, &mut args)?
+@@ -3960,6 +3964,11 @@ impl<'m> super::Vm<'m> {
+                     self.frames[top].stack.push(result);
+                 }
+                 Op::CallHostBuiltin { name, argc } => {
++                    if name.eq_ignore_ascii_case(b"call_user_func") || name.eq_ignore_ascii_case(b"call_user_func_array") {
++                        let args = self.pop_keys(top, *argc);
++                        self.invoke_user_trampoline(name, args)?;
++                        continue;
++                    }
+                     // S-148 (census): estensione dinamica del builtin nel
+                     // tag `hostcall` della partizione galloc.
+                     #[cfg(feature = "mem-census")]

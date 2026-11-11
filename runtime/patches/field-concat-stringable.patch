@@ -1,0 +1,121 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/mod.rs b/php-rust/crates/php-runtime/src/vm/mod.rs
+index 5af0f3f..761dcea 100644
+--- a/php-rust/crates/php-runtime/src/vm/mod.rs
++++ b/php-rust/crates/php-runtime/src/vm/mod.rs
+@@ -7747,6 +7747,13 @@ impl<'m> Vm<'m> {
+ 
+     /// [`apply_binop`] with `BcMath\Number` / `GMP` operator overloading first.
+     fn apply_binop_ovl(&mut self, op: BinOp, a: &Zval, b: &Zval) -> Result<Zval, PhpError> {
++        // Compound field writes must invoke Stringable just like binary `.`.
++        // No storage borrow may remain live while user __toString runs.
++        if matches!(op, BinOp::Concat) {
++            let left = self.vm_stringify(&a.deref_clone())?;
++            let right = self.vm_stringify(&b.deref_clone())?;
++            return Ok(Zval::Str(PhpStr::concat2(left.as_bytes(), right.as_bytes())));
++        }
+         if let Some(r) = self.try_number_binop(op, a, b)? {
+             return Ok(r);
+         }
+@@ -17514,6 +17529,7 @@ pub(super) fn closure_params(func: &Func) -> Vec<ClosureParam> {
+ /// by [`apply_last`], executed by `path_op`'s drain AFTER every walk guard
+ /// is dropped — Zend performs the same store through the collapsed pointer.
+ enum RefLeaf {
++    Concat { cell: std::rc::Weak<RefCell<Zval>>, old: Zval, rhs: Zval },
+     Set { cell: Rc<RefCell<Zval>>, value: Zval },
+     OpSet { cell: Rc<RefCell<Zval>>, op: BinOp, rhs: Zval },
+     IncDec { cell: Rc<RefCell<Zval>>, inc: bool, pre: bool },
+@@ -17700,6 +17716,24 @@ fn apply_last(parent: &mut Zval, last: Last, diags: &mut Diags, dropped: &mut Op
+             if matches!(op, crate::hir::BinOp::Concat) {
+                 crate::vm::census::census_concat_site(0, &old, &rhs);
+             }
++            // Stringable conversion can execute PHP and replace the root array.
++            // Retain the fetched leaf, then run conversion after all array/walk
++            // borrows have ended. Never re-walk a root changed by __toString.
++            if matches!(op, BinOp::Concat)
++                && (matches!(old.deref_clone(), Zval::Object(_))
++                    || matches!(rhs.deref_clone(), Zval::Object(_)))
++            {
++                let cell = match arr.get(&k) {
++                    Some(Zval::Ref(cell)) => Rc::clone(cell),
++                    _ => {
++                        let cell = php_types::zcell(old.clone());
++                        arr.insert(k, Zval::Ref(Rc::clone(&cell)));
++                        cell
++                    }
++                };
++                *refw = Some(RefLeaf::Concat { cell: Rc::downgrade(&cell), old, rhs });
++                return Ok(Zval::Null);
++            }
+             let result = apply_binop(op, &old, &rhs, diags)?;
+             // Write through an existing reference element (REF-4) — ONE
+             // lookup on the hit path (WP-32 B3). `Busy` is unreachable here
+diff --git a/php-rust/crates/php-runtime/src/vm/arrays.rs b/php-rust/crates/php-runtime/src/vm/arrays.rs
+index 68e49a9..82694fd 100644
+--- a/php-rust/crates/php-runtime/src/vm/arrays.rs
++++ b/php-rust/crates/php-runtime/src/vm/arrays.rs
+@@ -1256,6 +1256,14 @@ impl<'m> Vm<'m> {
+         // write through the collapsed pointer. At most one per path op.
+         if let Some(rl) = refw.take() {
+             match rl {
++                super::RefLeaf::Concat { cell, old, rhs } => {
++                    let new = self.apply_binop_ovl(crate::hir::BinOp::Concat, &old, &rhs)?;
++                    if let Some(cell) = cell.upgrade() {
++                        let displaced = std::mem::replace(&mut *cell.borrow_mut(), new.clone());
++                        self.gc_note(&displaced);
++                    }
++                    result = new;
++                }
+                 super::RefLeaf::Set { cell, value } => {
+                     match cell.try_borrow_mut() {
+                         Ok(mut g) => {
+@@ -1280,7 +1288,7 @@ impl<'m> Vm<'m> {
+                         }
+                     };
+                     if let Some(old) = old {
+-                        let new = super::apply_binop(op, &old, &rhs, &mut self.diags)?;
++                        let new = self.apply_binop_ovl(op, &old, &rhs)?;
+                         match cell.try_borrow_mut() {
+                             Ok(mut g) => {
+                                 let d = std::mem::replace(&mut *g, new.clone());
+@@ -1350,7 +1358,7 @@ impl<'m> Vm<'m> {
+                     if matches!(op, crate::hir::BinOp::Concat) {
+                         crate::vm::census::census_concat_site(5, &old, &rhs);
+                     }
+-                    let new = super::apply_binop(op, &old, &rhs, &mut self.diags)?;
++                    let new = self.apply_binop_ovl(op, &old, &rhs)?;
+                     self.call_method_sync(obj, b"offsetSet", vec![key, new.clone()])?;
+                     result = new;
+                 }
+@@ -1400,6 +1408,10 @@ impl<'m> Vm<'m> {
+                         // H-72.3: a busy cell is counted and SKIPPED — never
+                         // `op(Null, ·)` fabricated into the store.
+                         let store = match rl {
++                            super::RefLeaf::Concat { cell, old, rhs } => {
++                                let new = self.apply_binop_ovl(crate::hir::BinOp::Concat, &old, &rhs)?;
++                                cell.upgrade().map(|cell| (cell, new))
++                            }
+                             super::RefLeaf::Set { cell, value } => Some((cell, value)),
+                             super::RefLeaf::OpSet { cell, op, rhs } => {
+                                 let old = match cell.try_borrow() {
+@@ -1412,7 +1424,7 @@ impl<'m> Vm<'m> {
+                                 };
+                                 match old {
+                                     Some(old) => {
+-                                        let new = super::apply_binop(op, &old, &rhs, &mut self.diags)?;
++                                        let new = self.apply_binop_ovl(op, &old, &rhs)?;
+                                         Some((cell, new))
+                                     }
+                                     None => None,
+diff --git a/php-rust/crates/php-runtime/src/vm/host_reflect.rs b/php-rust/crates/php-runtime/src/vm/host_reflect.rs
+index d17721d..2982838 100644
+--- a/php-rust/crates/php-runtime/src/vm/host_reflect.rs
++++ b/php-rust/crates/php-runtime/src/vm/host_reflect.rs
+@@ -1610,7 +1610,7 @@ impl<'m> super::Vm<'m> {
+             return Ok(Zval::Bool(false));
+         };
+         match a.get(&key) {
+-            Some(Zval::Ref(cell)) => {
++            Some(Zval::Ref(cell)) if Rc::strong_count(cell) > 1 => {
+                 let id = format!("{:p}", Rc::as_ptr(cell));
+                 Ok(Zval::Str(PhpStr::new(id.into_bytes())))
+             }

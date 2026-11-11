@@ -1,0 +1,35 @@
+diff --git a/php-rust/crates/php-runtime/src/lower/mod.rs b/php-rust/crates/php-runtime/src/lower/mod.rs
+index c7769dc..799df55 100644
+--- a/php-rust/crates/php-runtime/src/lower/mod.rs
++++ b/php-rust/crates/php-runtime/src/lower/mod.rs
+@@ -3254,6 +3254,30 @@ pub(crate) fn resolve_constant(name: &[u8]) -> Option<ExprKind> {
+         b"ZLIB_MEM_ERROR" => ExprKind::Int(-4),
+         b"ZLIB_BUF_ERROR" => ExprKind::Int(-5),
+         b"ZLIB_VERSION_ERROR" => ExprKind::Int(-6),
++        // Stream-wrapper callback flags (PHP oracle).
++        b"STREAM_USE_PATH" => ExprKind::Int(1),
++        b"STREAM_IGNORE_URL" => ExprKind::Int(2),
++        b"STREAM_REPORT_ERRORS" => ExprKind::Int(8),
++        b"STREAM_MUST_SEEK" => ExprKind::Int(16),
++        b"STREAM_URL_STAT_LINK" => ExprKind::Int(1),
++        b"STREAM_URL_STAT_QUIET" => ExprKind::Int(2),
++        b"STREAM_MKDIR_RECURSIVE" => ExprKind::Int(1),
++        b"STREAM_IS_URL" => ExprKind::Int(1),
++        b"STREAM_OPTION_BLOCKING" => ExprKind::Int(1),
++        b"STREAM_OPTION_READ_TIMEOUT" => ExprKind::Int(4),
++        b"STREAM_OPTION_READ_BUFFER" => ExprKind::Int(2),
++        b"STREAM_OPTION_WRITE_BUFFER" => ExprKind::Int(3),
++        b"STREAM_BUFFER_NONE" => ExprKind::Int(0),
++        b"STREAM_BUFFER_LINE" => ExprKind::Int(1),
++        b"STREAM_BUFFER_FULL" => ExprKind::Int(2),
++        b"STREAM_CAST_AS_STREAM" => ExprKind::Int(0),
++        b"STREAM_CAST_FOR_SELECT" => ExprKind::Int(3),
++        b"STREAM_META_TOUCH" => ExprKind::Int(1),
++        b"STREAM_META_OWNER" => ExprKind::Int(3),
++        b"STREAM_META_OWNER_NAME" => ExprKind::Int(2),
++        b"STREAM_META_GROUP" => ExprKind::Int(5),
++        b"STREAM_META_GROUP_NAME" => ExprKind::Int(4),
++        b"STREAM_META_ACCESS" => ExprKind::Int(6),
+         // Stream filter directions (stream_filter_append).
+         b"STREAM_FILTER_READ" => ExprKind::Int(1),
+         b"STREAM_FILTER_WRITE" => ExprKind::Int(2),

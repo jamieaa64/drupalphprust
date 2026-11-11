@@ -1,0 +1,33 @@
+diff --git a/php-rust/crates/php-cli/src/server.rs b/php-rust/crates/php-cli/src/server.rs
+--- a/php-rust/crates/php-cli/src/server.rs
++++ b/php-rust/crates/php-cli/src/server.rs
+@@ -820,7 +820,28 @@
+     log_line(&format!(
+         "PHP 8.5.7 Development Server (http://{host}:{port}) started"
+     ));
+-    for stream in listener.incoming() {
++    // Browsers preconnect without sending a request. Keep those sockets pending
++    // so an idle connection cannot block a later ready request for 60 seconds.
++    use std::os::fd::AsRawFd;
++    let mut pending: Vec<(TcpStream, std::time::Instant)> = Vec::new();
++    loop {
++        pending.retain(|(_, since)| since.elapsed().as_secs() < 60);
++        let mut fds = vec![libc::pollfd { fd: listener.as_raw_fd(), events: libc::POLLIN, revents: 0 }];
++        fds.extend(pending.iter().map(|(s, _)| libc::pollfd { fd: s.as_raw_fd(), events: libc::POLLIN, revents: 0 }));
++        // poll only borrows the live descriptors owned by listener/pending.
++        let ready = unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, 1000) };
++        if ready < 0 {
++            if std::io::Error::last_os_error().kind() == std::io::ErrorKind::Interrupted { continue; }
++            break;
++        }
++        let index = fds.iter().skip(1).position(|fd| fd.revents != 0);
++        if fds[0].revents & libc::POLLIN != 0 {
++            if let Ok((stream, _)) = listener.accept() {
++                if pending.len() < 1024 { pending.push((stream, std::time::Instant::now())); }
++            }
++        }
++        let Some(index) = index else { continue };
++        let stream: std::io::Result<TcpStream> = Ok(pending.remove(index).0);
+         let Ok(mut stream) = stream else { continue };
+         let peer = stream
+             .peer_addr()

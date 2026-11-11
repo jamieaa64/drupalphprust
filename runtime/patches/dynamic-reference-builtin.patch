@@ -1,0 +1,50 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/calls.rs b/php-rust/crates/php-runtime/src/vm/calls.rs
+index 3a7b68d..0578f7c 100644
+--- a/php-rust/crates/php-runtime/src/vm/calls.rs
++++ b/php-rust/crates/php-runtime/src/vm/calls.rs
+@@ -1168,6 +1168,45 @@ impl<'m> Vm<'m> {
+             self.enter_callee(frame)?;
+             return Ok(());
+         }
++        if let Some(Builtin::RefFirst(f)) = self.registry.get(LcKey::new(name).as_slice()) {
++            let f = *f;
++            let top = self.frames.len() - 1;
++            if args.is_empty() {
++                return Err(PhpError::ArgumentCountError(format!("{}() expects at least 1 argument, 0 given", String::from_utf8_lossy(name))));
++            }
++            let first = args.remove(0);
++            let mut cell = match first {
++                Zval::ArgPlace(p) => {
++                    let base = match p.base {
++                        ArgPlaceBase::Local(s) => FieldBase::Local(s),
++                        ArgPlaceBase::Global(s) => FieldBase::Global(s),
++                        ArgPlaceBase::Superglobal(s) => FieldBase::Superglobal(s),
++                        ArgPlaceBase::This => FieldBase::This,
++                    };
++                    let steps: Vec<FieldStep> = p.steps.iter().map(|step| match step {
++                        ArgPlaceStep::Index => FieldStep::Index,
++                        ArgPlaceStep::Prop(n) => FieldStep::Prop(n.clone()),
++                        ArgPlaceStep::Append => FieldStep::Append,
++                    }).collect();
++                    Zval::Ref(self.make_ref_cell(top, base, &steps, p.keys.clone())?)
++                }
++                value @ Zval::Ref(_) => value,
++                _ => return Err(PhpError::Error(format!("{}(): Argument #1 cannot be passed by reference", String::from_utf8_lossy(name)))),
++            };
++            self.materialize_arg_places(top, &mut args, None)?;
++            let canonical = name.to_ascii_lowercase();
++            let stringify = if ref_builtin_string_coerces(&canonical) {
++                self.compute_stringify(&ref_stringify_roots(&cell), false)?
++            } else { std::collections::HashMap::new() };
++            let line = self.cur_line(top);
++            self.flush_diags(line)?;
++            let mut produced = Vec::new();
++            let result = builtin_ref_call(f, &mut cell, &args, &mut produced, &mut self.diags, &stringify);
++            self.write_output(&produced)?;
++            self.flush_diags(line)?;
++            self.frames[top].stack.push(result?);
++            return Ok(());
++        }
+         // Everything below (registry builtins, host builtins) takes arguments
+         // by value: R-fetch any deferred place argument, like a native callee.
+         if args.iter().any(|a| matches!(a, Zval::ArgPlace(_))) {

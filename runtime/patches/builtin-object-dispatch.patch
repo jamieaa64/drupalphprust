@@ -1,0 +1,67 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/calls.rs b/php-rust/crates/php-runtime/src/vm/calls.rs
+index d1aa678..8f71258 100644
+--- a/php-rust/crates/php-runtime/src/vm/calls.rs
++++ b/php-rust/crates/php-runtime/src/vm/calls.rs
+@@ -1171,20 +1171,14 @@ impl<'m> Vm<'m> {
+             let top = self.frames.len() - 1;
+             self.materialize_arg_places(top, &mut args, None)?;
+         }
+-        match self.registry.get(name) {
++        match self.registry.get(LcKey::new(name).as_slice()) {
+             Some(Builtin::Value(f)) => {
+                 let f = *f;
+-                // Same __toString precompute as the compiled Op::CallBuiltin
+-                // path: a string-coercing builtin invoked as a CALLBACK
+-                // (`array_map('strval', $cookies)`) must still honor
+-                // Stringable objects.
+-                if value_builtin_string_coerces(name) {
+-                    self.stringify_args = self.compute_stringify(&args, false)?;
+-                } else if value_builtin_string_coerces_deep(name, &args) {
+-                    self.stringify_args = self.compute_stringify(&args, true)?;
+-                }
+-                let line = self.cur_line(self.frames.len() - 1);
+-                let result = self.run_value_builtin(f, &args, line)?;
++                // Named callbacks and namespace fallbacks need the same
++                // object protocols as statically compiled builtin calls.
++                let canonical: Rc<[u8]> = name.to_ascii_lowercase().into();
++                let top = self.frames.len() - 1;
++                let result = self.value_builtin_call(top, f, &canonical, &mut args)?;
+                 let top = self.frames.len() - 1;
+                 self.frames[top].stack.push(result);
+                 Ok(())
+diff --git a/php-rust/crates/php-runtime/src/vm/mod.rs b/php-rust/crates/php-runtime/src/vm/mod.rs
+index e45938c..5af0f3f 100644
+--- a/php-rust/crates/php-runtime/src/vm/mod.rs
++++ b/php-rust/crates/php-runtime/src/vm/mod.rs
+@@ -11532,7 +11532,7 @@ impl<'m> Vm<'m> {
+             || self
+                 .linked_functions
+                 .contains_key(LcKey::new(name).as_slice())
+-            || self.registry.get(name).is_some()
++            || self.registry.get(LcKey::new(name).as_slice()).is_some()
+             || host_builtin_canonical(name).is_some()
+             || host_builtin_ref_first(name).is_some()
+             // Builtins with by-ref *output* parameters (preg_match's &$matches,
+diff --git a/php-rust/crates/php-runtime/src/vm/run.rs b/php-rust/crates/php-runtime/src/vm/run.rs
+index c08dc4a..89845fa 100644
+--- a/php-rust/crates/php-runtime/src/vm/run.rs
++++ b/php-rust/crates/php-runtime/src/vm/run.rs
+@@ -1399,7 +1399,7 @@ impl<'m> super::Vm<'m> {
+     /// argomenti già sfilati dalla pila (array esatto per arità <=4, Vec oltre)
+     /// e restituisce il valore da pushare. Fuori da `run_loop` di proposito:
+     /// i rami freddi non pesano sul layout del dispatcher.
+-    fn value_builtin_call(
++    pub(super) fn value_builtin_call(
+         &mut self,
+         top: usize,
+         f: crate::builtin::BuiltinFn,
+@@ -3952,8 +3952,7 @@ impl<'m> super::Vm<'m> {
+                     }
+                     let result = match f {
+                         Some(f) => {
+-                            let line = self.cur_line(top);
+-                            self.run_value_builtin(f, &args, line)?
++                            self.value_builtin_call(top, f, name, &mut args)?
+                         }
+                         None => self.dispatch_host_builtin(&name, args)?,
+                     };

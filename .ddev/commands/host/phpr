@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+## Description: Run PHP Rust CLI in the comparison service
+## Usage: phpr [arguments]
+## Example: ddev phpr --version
+set -euo pipefail
+ddev exec -s phpr phpr "$@"

@@ -1,0 +1,40 @@
+diff --git a/php-rust/crates/php-runtime/src/lower/class.rs b/php-rust/crates/php-runtime/src/lower/class.rs
+index 8e90b2a..112930f 100644
+--- a/php-rust/crates/php-runtime/src/lower/class.rs
++++ b/php-rust/crates/php-runtime/src/lower/class.rs
+@@ -73,10 +73,12 @@ impl<'f> Lowerer<'f> {
+     /// them in with the trait's own members taking precedence (step 21).
+     pub(super) fn resolve_trait(
+         &mut self,
+-        key: &[u8],
++        name: &[u8],
+         asts: &HashMap<Vec<u8>, &Trait>,
+         in_progress: &mut HashSet<Vec<u8>>,
+     ) -> Result<(), LowerError> {
++        let lookup_key = name.to_ascii_lowercase();
++        let key = lookup_key.as_slice();
+         if self.traits.contains_key(key) {
+             return Ok(());
+         }
+@@ -88,9 +90,9 @@ impl<'f> Lowerer<'f> {
+             Some(t) => *t,
+             None => {
+                 return Err(LowerError::UndefinedClass {
+-                    // `key` is already the FQN (S-72.6) — lowercase, which
+-                    // the composer classmap/case-insensitive FS tolerates.
+-                    name: Box::from(key),
++                    // Lookup is case-insensitive, but PSR-4 paths and autoload
++                    // callbacks require the original spelling on Linux.
++                    name: Box::from(name),
+                     kind: MissingSym::Trait,
+                     line: 0,
+                 })
+@@ -151,7 +153,7 @@ impl<'f> Lowerer<'f> {
+         // Resolve any nested traits before flattening their members in.
+         for u in &uses {
+             for tn in u.trait_names.iter() {
+-                let nk = self.resolve_class(tn).to_ascii_lowercase();
++                let nk = self.resolve_class(tn);
+                 self.resolve_trait(&nk, asts, in_progress)?;
+             }
+         }

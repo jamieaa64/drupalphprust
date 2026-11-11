@@ -1,0 +1,20 @@
+diff --git a/php-rust/crates/php-runtime/src/compile/assign.rs b/php-rust/crates/php-runtime/src/compile/assign.rs
+index 1b05c36..b61a7dd 100644
+--- a/php-rust/crates/php-runtime/src/compile/assign.rs
++++ b/php-rust/crates/php-runtime/src/compile/assign.rs
+@@ -365,6 +365,15 @@ impl<'a> super::FnCompiler<'a> {
+     }
+ 
+     pub(super) fn assign_ref_call(&mut self, target: &Place, call: &Expr) -> R<()> {
++        // Static dispatch preserves a method's returned reference. Reuse its
++        // normal argument/class resolution, then bind the result with the same
++        // runtime check used for instance and dynamic calls.
++        if matches!(call.kind, ExprKind::StaticCall { .. } | ExprKind::StaticCallDyn { .. }) {
++            let (base, steps) = self.field_path(target)?;
++            self.expr(call)?;
++            self.emit(Op::BindRefToChecked { base, steps: steps.into() });
++            return Ok(());
++        }
+         // `$t = &$obj->m(...)`: a method's by-reference-ness is only known at run
+         // time (dynamic dispatch), so emit the call and bind through the
+         // run-time-checked `BindRefToChecked` (alias a returned reference, else

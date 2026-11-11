@@ -1,0 +1,47 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/run.rs b/php-rust/crates/php-runtime/src/vm/run.rs
+index a32c8d7..2e8123f 100644
+--- a/php-rust/crates/php-runtime/src/vm/run.rs
++++ b/php-rust/crates/php-runtime/src/vm/run.rs
+@@ -1470,6 +1470,42 @@ impl<'m> super::Vm<'m> {
+                 return Ok(result);
+             }
+         }
++        // strtr's replacement map coerces each top-level value once in
++        // insertion order, but only for a non-empty valid string subject.
++        if name[..] == *b"strtr" && args.len() == 2 {
++            let mut subject = args[0].deref_clone();
++            if let Zval::Object(o) = &subject {
++                let cid = o.borrow().class_id as usize;
++                if resolve_method_runtime(&self.classes, cid, b"__toString").is_some() {
++                    subject = Zval::Str(self.vm_stringify(&subject)?);
++                    args[0] = subject.clone();
++                }
++            }
++            let nonempty = match &subject {
++                Zval::Str(s) => !s.as_bytes().is_empty(),
++                Zval::Long(_) | Zval::Double(_) | Zval::Bool(true) => true,
++                _ => false,
++            };
++            if nonempty {
++                if let Zval::Array(map) = args[1].deref_clone() {
++                    let mut converted = PhpArray::new();
++                    for (key, value) in map.iter() {
++                        let value = value.deref_clone();
++                        if matches!(&key, Key::Str(s) if s.as_bytes().is_empty()) {
++                            self.diags.push(Diag::Warning("strtr(): Ignoring replacement of empty string".to_string()));
++                            let line = self.cur_line(top);
++                            self.flush_diags(line)?;
++                            continue;
++                        }
++                        let value = Zval::Str(self.vm_stringify(&value)?);
++                        let line = self.cur_line(top);
++                        self.flush_diags(line)?;
++                        converted.insert(key.clone(), value);
++                    }
++                    args[1] = Zval::Array(Rc::new(converted));
++                }
++            }
++        }
+         // A builtin that unconditionally string-coerces its (string)
+         // arguments gets each Stringable object's `__toString()`
+         // precomputed, so the pure builtin honors it (handed over via

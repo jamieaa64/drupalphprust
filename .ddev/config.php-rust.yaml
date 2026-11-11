@@ -1,0 +1,6 @@
+# Base config.yaml is created by the One Line Installer, retaining its project name.
+# This overlay keeps the control runtime/database aligned with the investigation.
+php_version: "8.4"
+database:
+  type: mariadb
+  version: "11.8"

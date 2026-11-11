@@ -1,0 +1,142 @@
+diff --git a/php-rust/crates/php-runtime/src/lower/prelude/dom.php b/php-rust/crates/php-runtime/src/lower/prelude/dom.php
+index 70844c9..9fd0918 100644
+--- a/php-rust/crates/php-runtime/src/lower/prelude/dom.php
++++ b/php-rust/crates/php-runtime/src/lower/prelude/dom.php
+@@ -300,6 +300,14 @@ class DOMDocument extends DOMNode {
+         }
+         return DOMNode::__wrap($this->__d, $n);
+     }
++    public function createElementNS($namespace, $qualifiedName, $value = '') {
++        $prefix = DOMImplementation::__namespacePrefix($namespace, $qualifiedName);
++        $element = $this->createElement($qualifiedName, $value);
++        if ($namespace !== null && $namespace !== '' && $prefix !== 'xml') {
++            $element->setAttribute($prefix === '' ? 'xmlns' : 'xmlns:' . $prefix, $namespace);
++        }
++        return $element;
++    }
+     public function createTextNode($data = '') {
+         return DOMNode::__wrap($this->__d, __dom_create($this->__d, 3, (string)$data, ''));
+     }
+@@ -422,6 +430,32 @@ class DOMElement extends DOMNode {
+         }
+         return DOMNodeList::__make($items);
+     }
++    public function setAttributeNS($namespace, $qualifiedName, $value) {
++        $prefix = DOMImplementation::__namespacePrefix($namespace, $qualifiedName);
++        if ($namespace !== null && $namespace !== '' && $prefix === '' && $qualifiedName !== 'xmlns') {
++            throw new Error('DOMElement::setAttributeNS(): automatic namespace prefixes are not yet supported');
++        }
++        if ($namespace !== null && $namespace !== '' && $prefix !== '' && $prefix !== 'xml' && $prefix !== 'xmlns') {
++            $existing = __dom_ns($this->__d, $this->__n, $qualifiedName);
++            if ($existing[0] !== null && $existing[0] !== $namespace) {
++                throw new Error('DOMElement::setAttributeNS(): namespace prefix rebinding is not yet supported');
++            }
++            $this->setAttribute('xmlns:' . $prefix, $namespace);
++        }
++        $this->setAttribute($qualifiedName, $value);
++    }
++    public function getAttributeNS($namespace, $localName) {
++        foreach ($this->attributes as $attribute) {
++            if ($attribute->localName === $localName && (string)$attribute->namespaceURI === (string)$namespace) { return $attribute->value; }
++        }
++        return '';
++    }
++    public function hasAttributeNS($namespace, $localName) {
++        foreach ($this->attributes as $attribute) {
++            if ($attribute->localName === $localName && (string)$attribute->namespaceURI === (string)$namespace) { return true; }
++        }
++        return false;
++    }
+     public function setIdAttribute($qualifiedName, $isId) {}
+     public function remove() {
+         $p = __dom_nav($this->__d, $this->__n, 0);
+@@ -601,22 +635,52 @@ class DOMDocumentFragment extends DOMNode {
+ }
+ 
+ class DOMDocumentType extends DOMNode {
++    public $__ownerless = false;
+     public function __get($name) {
++        if ($name === 'ownerDocument' && $this->__ownerless) { return null; }
+         if ($name === 'name') {
+             $i = __dom_info($this->__d, $this->__n);
+             return $i[1];
+         }
+-        if ($name === 'publicId' || $name === 'systemId') { return ''; }
++        if ($name === 'publicId' || $name === 'systemId') { $i = __dom_info($this->__d, $this->__n); return $i[$name === 'publicId' ? 3 : 4]; }
+         return parent::__get($name);
+     }
+ }
+ 
+ class DOMImplementation {
++    public static function __namespacePrefix($namespace, $qualifiedName) {
++        $colon = strpos($qualifiedName, ':');
++        $prefix = $colon === false ? '' : substr($qualifiedName, 0, $colon);
++        if (($colon !== false && ($prefix === '' || $colon === strlen($qualifiedName) - 1 || strpos($qualifiedName, ':', $colon + 1) !== false))
++            || ($prefix !== '' && ($namespace === null || $namespace === ''))
++            || ($prefix === 'xml' && $namespace !== 'http://www.w3.org/XML/1998/namespace')
++            || (($prefix === 'xmlns' || $qualifiedName === 'xmlns') && $namespace !== 'http://www.w3.org/2000/xmlns/')
++            || ($namespace === 'http://www.w3.org/2000/xmlns/' && $prefix !== 'xmlns' && $qualifiedName !== 'xmlns')) {
++            throw new DOMException('Namespace Error', 14);
++        }
++        return $prefix;
++    }
+     public function hasFeature($feature, $version) { return true; }
++    public function createDocumentType($qualifiedName, $publicId = '', $systemId = '') {
++        if ($qualifiedName === '') { throw new ValueError('DOMImplementation::createDocumentType(): Argument #1 ($qualifiedName) must not be empty'); }
++        $d = __dom_new_doc('1.0', '');
++        $node = DOMNode::__wrap($d, __dom_create($d, 10, $qualifiedName, $publicId, $systemId));
++        $node->__ownerless = true;
++        return $node;
++    }
+     public function createDocument($namespace = null, $qualifiedName = '', $doctype = null) {
+         $doc = new DOMDocument();
++        if ($doctype !== null) {
++            if (!($doctype instanceof DOMDocumentType)) { throw new TypeError('Expected DOMDocumentType'); }
++            if (!$doctype->__ownerless) { throw new DOMException('Wrong Document Error', 4); }
++            $n = __dom_copy($doc->__d, $doctype->__d, $doctype->__n, 1);
++            $doctype->__d = $doc->__d;
++            $doctype->__n = $n;
++            $doctype->__ownerless = false;
++            $doc->appendChild($doctype);
++        }
+         if ($qualifiedName !== '') {
+-            $doc->appendChild($doc->createElement($qualifiedName));
++            $doc->appendChild($doc->createElementNS($namespace, $qualifiedName));
+         }
+         return $doc;
+     }
+diff --git a/php-rust/crates/php-runtime/src/vm/dom.rs b/php-rust/crates/php-runtime/src/vm/dom.rs
+index f9380bc..d2188ba 100644
+--- a/php-rust/crates/php-runtime/src/vm/dom.rs
++++ b/php-rust/crates/php-runtime/src/vm/dom.rs
+@@ -3201,6 +3201,10 @@ impl<'m> Vm<'m> {
+             Some(v) => Zval::Str(PhpStr::new(v)),
+             None => Zval::Null,
+         });
++        if let DomKind::DocType { public_id, system_id, .. } = kind {
++            let _ = arr.append(Zval::Str(PhpStr::new(public_id.clone().unwrap_or_default())));
++            let _ = arr.append(Zval::Str(PhpStr::new(system_id.clone().unwrap_or_default())));
++        }
+         Ok(Zval::Array(Rc::new(arr)))
+     }
+ 
+@@ -3385,6 +3389,7 @@ impl<'m> Vm<'m> {
+         let kind_code = self.dom_arg(&args, 1);
+         let a = self.dom_str(&args, 2);
+         let b = self.dom_str(&args, 3);
++        let system_id = self.dom_str(&args, 4);
+         let (_, id) = self.dom_doc(&args)?;
+         let kind = match kind_code {
+             1 => {
+@@ -3400,6 +3405,11 @@ impl<'m> Vm<'m> {
+             4 => DomKind::Cdata(a),
+             7 => DomKind::Pi { target: a, data: b },
+             8 => DomKind::Comment(a),
++            10 => DomKind::DocType {
++                name: a,
++                public_id: if b.is_empty() { None } else { Some(b) },
++                system_id: if system_id.is_empty() { None } else { Some(system_id) },
++            },
+             _ => DomKind::Fragment,
+         };
+         let doc = self.dom_docs.get_mut(&id).unwrap();

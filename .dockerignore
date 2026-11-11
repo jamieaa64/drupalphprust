@@ -1,0 +1,7 @@
+.git
+.work
+results
+tests/results
+web
+vendor
+.env

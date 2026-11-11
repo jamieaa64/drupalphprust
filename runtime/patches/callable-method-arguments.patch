@@ -1,0 +1,27 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/calls.rs b/php-rust/crates/php-runtime/src/vm/calls.rs
+index 8f71258..ea6e1b5 100644
+--- a/php-rust/crates/php-runtime/src/vm/calls.rs
++++ b/php-rust/crates/php-runtime/src/vm/calls.rs
+@@ -560,7 +560,7 @@ impl<'m> Vm<'m> {
+                     let top = self.frames.len() - 1;
+                     // `deref: false` preserves the pre-WP-53 behaviour: no
+                     // `DerefTop` ever followed the CallValue family.
+-                    self.dispatch_instance_call(top, cid, callee.clone(), b"__invoke", args, None, false)
++                    self.method_call(top, callee.clone(), b"__invoke", args, None, false)
+                 } else {
+                     Err(PhpError::Error(format!(
+                         "Object of type {} is not callable",
+@@ -618,10 +618,9 @@ impl<'m> Vm<'m> {
+         let top = self.frames.len() - 1;
+         let result = match &elems[0] {
+             Zval::Object(_) => {
+-                let cid = object_class_id(&elems[0]).expect("object class id");
+-                // `deref: false`: no `DerefTop` ever followed a callable-array
+-                // dispatch (pre-WP-53 behaviour preserved).
+-                self.dispatch_instance_call(top, cid, elems[0].clone(), &method, args, None, false)
++                // Resolve deferred arguments in the caller before binding the
++                // method frame, just like an ordinary instance method call.
++                self.method_call(top, elems[0].clone(), &method, args, None, false)
+             }
+             Zval::Str(_) => {
+                 let cid = self.resolve_dynamic_class(&elems[0])?;

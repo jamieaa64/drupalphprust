@@ -1,0 +1,35 @@
+diff --git a/php-rust/crates/php-runtime/src/compile/assign.rs b/php-rust/crates/php-runtime/src/compile/assign.rs
+index bd24c45..1b05c36 100644
+--- a/php-rust/crates/php-runtime/src/compile/assign.rs
++++ b/php-rust/crates/php-runtime/src/compile/assign.rs
+@@ -406,16 +406,25 @@ impl<'a> super::FnCompiler<'a> {
+             self.emit(Op::BindRefToChecked { base, steps: steps.into() });
+             return Ok(());
+         }
+-        let ExprKind::Call { name, args, named, .. } = &call.kind else {
++        let ExprKind::Call { name, fallback, args, named } = &call.kind else {
+             return Err(CompileError::Unsupported("reference assignment from a non-call".into()));
+         };
+         if !named.is_empty() {
+             return Err(CompileError::Unsupported("reference call with named arguments".into()));
+         }
+-        let Some(idx) = self.ctx.funcs.iter().position(|f| ascii_eq_ignore_case(&f.name, name)) else {
+-            return Err(CompileError::Unsupported(
+-                "reference assignment from a builtin / undefined call".into(),
+-            ));
++        let hoisted = |candidate: &[u8]| {
++            self.ctx.funcs.iter().enumerate().find(|(i, f)| {
++                !self.ctx.conditional_fns.contains(i) && ascii_eq_ignore_case(&f.name, candidate)
++            }).map(|(i, _)| i)
++        };
++        let Some(idx) = hoisted(name).or_else(|| fallback.as_deref().and_then(hoisted)) else {
++            // Cross-unit functions are resolved at runtime. The ordinary
++            // unresolved-call path preserves returned references; check the
++            // result when binding, as for a dynamic callable or method.
++            let (base, steps) = self.field_path(target)?;
++            self.call(name, fallback.as_deref(), args, named)?;
++            self.emit(Op::BindRefToChecked { base, steps: steps.into() });
++            return Ok(());
+         };
+         let callee = &self.ctx.funcs[idx];
+         if callee.params.iter().any(|p| p.variadic) {

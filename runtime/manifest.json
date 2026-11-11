@@ -1,0 +1,122 @@
+{
+  "repository": "https://github.com/francescotinti/php-rust.git",
+  "commit": "72f688c3183b79858c01d250ce3999d86e143544",
+  "patches": [
+    {
+      "file": "pdo-mysql.patch",
+      "sha256": "0e4993ff5684b35d8f7effc113bb8281f4146350c975989c18fd845280b700a6"
+    },
+    {
+      "file": "recursive-callback-iterator.patch",
+      "sha256": "f183a808b02e5ed0f84a890c80589eeca16025cd8a74e9633bf6a2b94c2ac3c9"
+    },
+    {
+      "file": "trait-autoload-case.patch",
+      "sha256": "f68060d423094b96d2c8f662fde5a55cdef64df90201d9dbd9a4e9eb328725a8"
+    },
+    {
+      "file": "trait-diamond.patch",
+      "sha256": "ba207e2a7b0a459fe11de413484c85b2fd8fc8519c0cb0b019a06cf94b8c23c8"
+    },
+    {
+      "file": "unserialize-private-fields.patch",
+      "sha256": "4bf3736fffac70d641abc317019be7fcdc14a914debfabc5ce63b46dfbd6c62f"
+    },
+    {
+      "file": "builtin-object-dispatch.patch",
+      "sha256": "d647e45c71dcbd370fd85d489df9c55872cfb80202400bed2264b773044a979d"
+    },
+    {
+      "file": "callable-method-arguments.patch",
+      "sha256": "f648fa063163741d58c3244368772dc710cdd860966ee66ef103665664d4fd95"
+    },
+    {
+      "file": "callable-autoload.patch",
+      "sha256": "29b355758ad41cdc3ba1619e9133b61264d7b465df45440354835db2b8bb607c"
+    },
+    {
+      "file": "cross-unit-reference-call.patch",
+      "sha256": "ee7dd2a8b0af1e690bfa9ad1368c48fc54e2ffee19a15bd38f9ee5355d875892"
+    },
+    {
+      "file": "fiber-static-dispatch.patch",
+      "sha256": "1c7a96397614150e230ca5aff8908edc61ce7838344c09b8dec4f9dbf997f046"
+    },
+    {
+      "file": "fiber-callback-trampoline.patch",
+      "sha256": "efafa39c6b6a6bac69f70f3c3a4c8d7db0cef1eed7340f86c49356dba692f211"
+    },
+    {
+      "file": "dom-doctype.patch",
+      "sha256": "e1d470c673460d7f1746f0b21d97f86c389a1a42e1a147afbf46c30a8b7565e1"
+    },
+    {
+      "file": "strtr-stringable-map.patch",
+      "sha256": "0211fdf05c8d83c436f1c9d62db13740eeaf659df37a57ce2a4f3ae6925db20c"
+    },
+    {
+      "file": "concat-stringable.patch",
+      "sha256": "94e0979180fce3c32bacabed509184a96040dd240c71f6ff1923c60da841f62a"
+    },
+    {
+      "file": "dynamic-reference-builtin.patch",
+      "sha256": "59068d4b8d7b1cf85da0934d3a3d932c9e25a2dff1878232d2c86de5a6b8c3d6"
+    },
+    {
+      "file": "enum-serialization.patch",
+      "sha256": "9fb6669847fa0de7b44a5912bcd691d50c8ebbff8a931d6b3ce8557979ff9930"
+    },
+    {
+      "file": "static-reference.patch",
+      "sha256": "27e372a4b44e9ad1923fb0ab436cd02acc0272f826bcc27b861cddf7fee54900"
+    },
+    {
+      "file": "field-concat-stringable.patch",
+      "sha256": "fb011f831c4eb400679bbd9359058f1d259d039a6dc28118157895d51be78aed"
+    },
+    {
+      "file": "arrayaccess-reference.patch",
+      "sha256": "3c0b0b2871a7e73fa790801b9d5fbe5a9e6f5b11ce413899365365d0f71b7105"
+    },
+    {
+      "file": "builtin-reflection.patch",
+      "sha256": "35c554bce4b6d762dc57d4e2e21651ea6bae49f6aa88bb978e612f7f3bc904bf"
+    },
+    {
+      "file": "return-reference.patch",
+      "sha256": "3707bf43ad67acc1d9ad6177054bc00d2cef58cb315249cc3724f266be2900b8"
+    },
+    {
+      "file": "touch-directory.patch",
+      "sha256": "e91f2d5fa0e56cf6727ca3c66bdd7b8695367f27433eba0a7543b9e85b997bfb"
+    },
+    {
+      "file": "empty-class-autoload.patch",
+      "sha256": "c2d6fd493bbe3d0449ec0f3eaa462cfdae7d9ccfe468a49f8710a9be0530e620"
+    },
+    {
+      "file": "server-preconnect.patch",
+      "sha256": "4b6e5774561e8e806cc36289197e7dd1e6ba0d9c3c744964055dc57e4c19a515"
+    },
+    {
+      "file": "object-vars-snapshot.patch",
+      "sha256": "ac43e5262bda903e482b4c9cf1179aab29cd9893ba81c3dffab39e683bc48933"
+    },
+    {
+      "file": "stream-constants.patch",
+      "sha256": "f4ce251f1d594f1bb744e57d5fdff58315012e3bcafefdaa74cb9b38189ccbe8"
+    },
+    {
+      "file": "session-regenerate-cookie.patch",
+      "sha256": "fc432a1da5263f045cfd68b18f2683452a3fc42821a7e79d3f40a71571fc11a6"
+    },
+    {
+      "file": "preg-byte-offset.patch",
+      "sha256": "df975d637e3f19be8287f50f49ae3318e09c6c8ae259ab1af5d2dcfff40eee1e"
+    },
+    {
+      "file": "chained-magic-argument.patch",
+      "sha256": "ed8d298a371d061ac138a40abc120673bf10f14e44d8697653095d61d6a186ca"
+    }
+  ]
+}

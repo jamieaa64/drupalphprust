@@ -1,0 +1,84 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/host_reflect.rs b/php-rust/crates/php-runtime/src/vm/host_reflect.rs
+index d17721d..c969408 100644
+--- a/php-rust/crates/php-runtime/src/vm/host_reflect.rs
++++ b/php-rust/crates/php-runtime/src/vm/host_reflect.rs
+@@ -286,6 +286,19 @@ impl<'m> super::Vm<'m> {
+         self.frames.push(frame);
+         self.drive_to_return(baseline)
+     }
++    // Oracle-generated PHP 8.4.8 metadata, scoped to these supported builtins.
++    fn reflect_builtin_descriptor(&mut self, name: &[u8]) -> Result<Zval, PhpError> {
++        let wire: &[u8] = match name.to_ascii_lowercase().as_slice() {
++            b"abs" => include_bytes!("builtin-reflection/abs.ser"),
++            b"json_encode" => include_bytes!("builtin-reflection/json_encode.ser"),
++            b"max" => include_bytes!("builtin-reflection/max.ser"),
++            b"min" => include_bytes!("builtin-reflection/min.ser"),
++            b"range" => include_bytes!("builtin-reflection/range.ser"),
++            b"is_iterable" => include_bytes!("builtin-reflection/is_iterable.ser"),
++            _ => return Ok(Zval::Bool(false)),
++        };
++        self.ho_unserialize(vec![Zval::Str(PhpStr::new(wire.to_vec()))])
++    }
+     /// `__reflect_closure_info($closure)`: the signature descriptor of a closure
+     /// value, or `false`. A first-class callable (`strlen(...)`) reflects the
+     /// named function it wraps; an ordinary closure reflects its own body via the
+@@ -323,7 +336,7 @@ impl<'m> super::Vm<'m> {
+             }
+             return match self.find_user_function(&nm) {
+                 Some(func) => Ok(Zval::Array(Rc::new(self.build_func_descriptor(func, None)?))),
+-                None => Ok(Zval::Bool(false)),
++                None => self.reflect_builtin_descriptor(&nm),
+             };
+         }
+         let m = self.modules[cl.module_id];
+@@ -408,7 +421,7 @@ impl<'m> super::Vm<'m> {
+     pub(super) fn ho_reflect_func_info(&mut self, args: Vec<Zval>) -> Result<Zval, PhpError> {
+         let Some(first) = args.first() else { return Ok(Zval::Bool(false)) };
+         let name = convert::to_zstr_cast(first, &mut self.diags).as_bytes().to_vec();
+-        let Some(func) = self.find_user_function(&name) else { return Ok(Zval::Bool(false)) };
++        let Some(func) = self.find_user_function(&name) else { return self.reflect_builtin_descriptor(&name) };
+         Ok(Zval::Array(Rc::new(self.build_func_descriptor(func, None)?)))
+     }
+     /// `__reflect_method_info($class, $method)`: the signature descriptor of a method
+diff --git a/php-rust/crates/php-runtime/src/vm/builtin-reflection/abs.ser b/php-rust/crates/php-runtime/src/vm/builtin-reflection/abs.ser
+new file mode 100644
+--- /dev/null
++++ b/php-rust/crates/php-runtime/src/vm/builtin-reflection/abs.ser
+@@ -0,0 +1 @@
++a:9:{s:4:"name";s:3:"abs";s:6:"params";a:1:{i:0;a:13:{s:4:"name";s:3:"num";s:8:"position";i:0;s:8:"optional";b:0;s:8:"variadic";b:0;s:5:"byref";b:0;s:4:"type";a:3:{s:4:"kind";s:5:"union";s:5:"types";a:2:{i:0;a:3:{s:4:"name";s:3:"int";s:7:"builtin";b:1;s:8:"nullable";b:0;}i:1;a:3:{s:4:"name";s:5:"float";s:7:"builtin";b:1;s:8:"nullable";b:0;}}s:8:"nullable";b:0;}s:10:"hasDefault";b:0;s:7:"default";N;s:9:"declClass";s:0:"";s:8:"declFunc";s:3:"abs";s:15:"defaultConstant";b:0;s:12:"defaultError";b:0;s:8:"promoted";b:0;}}s:10:"returnType";a:3:{s:4:"kind";s:5:"union";s:5:"types";a:2:{i:0;a:3:{s:4:"name";s:3:"int";s:7:"builtin";b:1;s:8:"nullable";b:0;}i:1;a:3:{s:4:"name";s:5:"float";s:7:"builtin";b:1;s:8:"nullable";b:0;}}s:8:"nullable";b:0;}s:3:"doc";b:0;s:11:"isGenerator";b:0;s:5:"byRef";b:0;s:4:"file";b:0;s:9:"startLine";b:0;s:7:"endLine";b:0;}
+\ No newline at end of file
+diff --git a/php-rust/crates/php-runtime/src/vm/builtin-reflection/is_iterable.ser b/php-rust/crates/php-runtime/src/vm/builtin-reflection/is_iterable.ser
+new file mode 100644
+--- /dev/null
++++ b/php-rust/crates/php-runtime/src/vm/builtin-reflection/is_iterable.ser
+@@ -0,0 +1 @@
++a:9:{s:4:"name";s:11:"is_iterable";s:6:"params";a:1:{i:0;a:13:{s:4:"name";s:5:"value";s:8:"position";i:0;s:8:"optional";b:0;s:8:"variadic";b:0;s:5:"byref";b:0;s:4:"type";a:3:{s:4:"name";s:5:"mixed";s:7:"builtin";b:1;s:8:"nullable";b:1;}s:10:"hasDefault";b:0;s:7:"default";N;s:9:"declClass";s:0:"";s:8:"declFunc";s:11:"is_iterable";s:15:"defaultConstant";b:0;s:12:"defaultError";b:0;s:8:"promoted";b:0;}}s:10:"returnType";a:3:{s:4:"name";s:4:"bool";s:7:"builtin";b:1;s:8:"nullable";b:0;}s:3:"doc";b:0;s:11:"isGenerator";b:0;s:5:"byRef";b:0;s:4:"file";b:0;s:9:"startLine";b:0;s:7:"endLine";b:0;}
+\ No newline at end of file
+diff --git a/php-rust/crates/php-runtime/src/vm/builtin-reflection/json_encode.ser b/php-rust/crates/php-runtime/src/vm/builtin-reflection/json_encode.ser
+new file mode 100644
+--- /dev/null
++++ b/php-rust/crates/php-runtime/src/vm/builtin-reflection/json_encode.ser
+@@ -0,0 +1 @@
++a:9:{s:4:"name";s:11:"json_encode";s:6:"params";a:3:{i:0;a:13:{s:4:"name";s:5:"value";s:8:"position";i:0;s:8:"optional";b:0;s:8:"variadic";b:0;s:5:"byref";b:0;s:4:"type";a:3:{s:4:"name";s:5:"mixed";s:7:"builtin";b:1;s:8:"nullable";b:1;}s:10:"hasDefault";b:0;s:7:"default";N;s:9:"declClass";s:0:"";s:8:"declFunc";s:11:"json_encode";s:15:"defaultConstant";b:0;s:12:"defaultError";b:0;s:8:"promoted";b:0;}i:1;a:13:{s:4:"name";s:5:"flags";s:8:"position";i:1;s:8:"optional";b:1;s:8:"variadic";b:0;s:5:"byref";b:0;s:4:"type";a:3:{s:4:"name";s:3:"int";s:7:"builtin";b:1;s:8:"nullable";b:0;}s:10:"hasDefault";b:1;s:7:"default";i:0;s:9:"declClass";s:0:"";s:8:"declFunc";s:11:"json_encode";s:15:"defaultConstant";b:0;s:12:"defaultError";b:0;s:8:"promoted";b:0;}i:2;a:13:{s:4:"name";s:5:"depth";s:8:"position";i:2;s:8:"optional";b:1;s:8:"variadic";b:0;s:5:"byref";b:0;s:4:"type";a:3:{s:4:"name";s:3:"int";s:7:"builtin";b:1;s:8:"nullable";b:0;}s:10:"hasDefault";b:1;s:7:"default";i:512;s:9:"declClass";s:0:"";s:8:"declFunc";s:11:"json_encode";s:15:"defaultConstant";b:0;s:12:"defaultError";b:0;s:8:"promoted";b:0;}}s:10:"returnType";a:3:{s:4:"kind";s:5:"union";s:5:"types";a:2:{i:0;a:3:{s:4:"name";s:6:"string";s:7:"builtin";b:1;s:8:"nullable";b:0;}i:1;a:3:{s:4:"name";s:5:"false";s:7:"builtin";b:1;s:8:"nullable";b:0;}}s:8:"nullable";b:0;}s:3:"doc";b:0;s:11:"isGenerator";b:0;s:5:"byRef";b:0;s:4:"file";b:0;s:9:"startLine";b:0;s:7:"endLine";b:0;}
+\ No newline at end of file
+diff --git a/php-rust/crates/php-runtime/src/vm/builtin-reflection/max.ser b/php-rust/crates/php-runtime/src/vm/builtin-reflection/max.ser
+new file mode 100644
+--- /dev/null
++++ b/php-rust/crates/php-runtime/src/vm/builtin-reflection/max.ser
+@@ -0,0 +1 @@
++a:9:{s:4:"name";s:3:"max";s:6:"params";a:2:{i:0;a:13:{s:4:"name";s:5:"value";s:8:"position";i:0;s:8:"optional";b:0;s:8:"variadic";b:0;s:5:"byref";b:0;s:4:"type";a:3:{s:4:"name";s:5:"mixed";s:7:"builtin";b:1;s:8:"nullable";b:1;}s:10:"hasDefault";b:0;s:7:"default";N;s:9:"declClass";s:0:"";s:8:"declFunc";s:3:"max";s:15:"defaultConstant";b:0;s:12:"defaultError";b:0;s:8:"promoted";b:0;}i:1;a:13:{s:4:"name";s:6:"values";s:8:"position";i:1;s:8:"optional";b:1;s:8:"variadic";b:1;s:5:"byref";b:0;s:4:"type";a:3:{s:4:"name";s:5:"mixed";s:7:"builtin";b:1;s:8:"nullable";b:1;}s:10:"hasDefault";b:0;s:7:"default";N;s:9:"declClass";s:0:"";s:8:"declFunc";s:3:"max";s:15:"defaultConstant";b:0;s:12:"defaultError";b:0;s:8:"promoted";b:0;}}s:10:"returnType";a:3:{s:4:"name";s:5:"mixed";s:7:"builtin";b:1;s:8:"nullable";b:1;}s:3:"doc";b:0;s:11:"isGenerator";b:0;s:5:"byRef";b:0;s:4:"file";b:0;s:9:"startLine";b:0;s:7:"endLine";b:0;}
+\ No newline at end of file
+diff --git a/php-rust/crates/php-runtime/src/vm/builtin-reflection/min.ser b/php-rust/crates/php-runtime/src/vm/builtin-reflection/min.ser
+new file mode 100644
+--- /dev/null
++++ b/php-rust/crates/php-runtime/src/vm/builtin-reflection/min.ser
+@@ -0,0 +1 @@
++a:9:{s:4:"name";s:3:"min";s:6:"params";a:2:{i:0;a:13:{s:4:"name";s:5:"value";s:8:"position";i:0;s:8:"optional";b:0;s:8:"variadic";b:0;s:5:"byref";b:0;s:4:"type";a:3:{s:4:"name";s:5:"mixed";s:7:"builtin";b:1;s:8:"nullable";b:1;}s:10:"hasDefault";b:0;s:7:"default";N;s:9:"declClass";s:0:"";s:8:"declFunc";s:3:"min";s:15:"defaultConstant";b:0;s:12:"defaultError";b:0;s:8:"promoted";b:0;}i:1;a:13:{s:4:"name";s:6:"values";s:8:"position";i:1;s:8:"optional";b:1;s:8:"variadic";b:1;s:5:"byref";b:0;s:4:"type";a:3:{s:4:"name";s:5:"mixed";s:7:"builtin";b:1;s:8:"nullable";b:1;}s:10:"hasDefault";b:0;s:7:"default";N;s:9:"declClass";s:0:"";s:8:"declFunc";s:3:"min";s:15:"defaultConstant";b:0;s:12:"defaultError";b:0;s:8:"promoted";b:0;}}s:10:"returnType";a:3:{s:4:"name";s:5:"mixed";s:7:"builtin";b:1;s:8:"nullable";b:1;}s:3:"doc";b:0;s:11:"isGenerator";b:0;s:5:"byRef";b:0;s:4:"file";b:0;s:9:"startLine";b:0;s:7:"endLine";b:0;}
+\ No newline at end of file
+diff --git a/php-rust/crates/php-runtime/src/vm/builtin-reflection/range.ser b/php-rust/crates/php-runtime/src/vm/builtin-reflection/range.ser
+new file mode 100644
+--- /dev/null
++++ b/php-rust/crates/php-runtime/src/vm/builtin-reflection/range.ser
+@@ -0,0 +1 @@
++a:9:{s:4:"name";s:5:"range";s:6:"params";a:3:{i:0;a:13:{s:4:"name";s:5:"start";s:8:"position";i:0;s:8:"optional";b:0;s:8:"variadic";b:0;s:5:"byref";b:0;s:4:"type";a:3:{s:4:"kind";s:5:"union";s:5:"types";a:3:{i:0;a:3:{s:4:"name";s:6:"string";s:7:"builtin";b:1;s:8:"nullable";b:0;}i:1;a:3:{s:4:"name";s:3:"int";s:7:"builtin";b:1;s:8:"nullable";b:0;}i:2;a:3:{s:4:"name";s:5:"float";s:7:"builtin";b:1;s:8:"nullable";b:0;}}s:8:"nullable";b:0;}s:10:"hasDefault";b:0;s:7:"default";N;s:9:"declClass";s:0:"";s:8:"declFunc";s:5:"range";s:15:"defaultConstant";b:0;s:12:"defaultError";b:0;s:8:"promoted";b:0;}i:1;a:13:{s:4:"name";s:3:"end";s:8:"position";i:1;s:8:"optional";b:0;s:8:"variadic";b:0;s:5:"byref";b:0;s:4:"type";a:3:{s:4:"kind";s:5:"union";s:5:"types";a:3:{i:0;a:3:{s:4:"name";s:6:"string";s:7:"builtin";b:1;s:8:"nullable";b:0;}i:1;a:3:{s:4:"name";s:3:"int";s:7:"builtin";b:1;s:8:"nullable";b:0;}i:2;a:3:{s:4:"name";s:5:"float";s:7:"builtin";b:1;s:8:"nullable";b:0;}}s:8:"nullable";b:0;}s:10:"hasDefault";b:0;s:7:"default";N;s:9:"declClass";s:0:"";s:8:"declFunc";s:5:"range";s:15:"defaultConstant";b:0;s:12:"defaultError";b:0;s:8:"promoted";b:0;}i:2;a:13:{s:4:"name";s:4:"step";s:8:"position";i:2;s:8:"optional";b:1;s:8:"variadic";b:0;s:5:"byref";b:0;s:4:"type";a:3:{s:4:"kind";s:5:"union";s:5:"types";a:2:{i:0;a:3:{s:4:"name";s:3:"int";s:7:"builtin";b:1;s:8:"nullable";b:0;}i:1;a:3:{s:4:"name";s:5:"float";s:7:"builtin";b:1;s:8:"nullable";b:0;}}s:8:"nullable";b:0;}s:10:"hasDefault";b:1;s:7:"default";i:1;s:9:"declClass";s:0:"";s:8:"declFunc";s:5:"range";s:15:"defaultConstant";b:0;s:12:"defaultError";b:0;s:8:"promoted";b:0;}}s:10:"returnType";a:3:{s:4:"name";s:5:"array";s:7:"builtin";b:1;s:8:"nullable";b:0;}s:3:"doc";b:0;s:11:"isGenerator";b:0;s:5:"byRef";b:0;s:4:"file";b:0;s:9:"startLine";b:0;s:7:"endLine";b:0;}
+\ No newline at end of file

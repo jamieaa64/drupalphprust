@@ -1,0 +1,26 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/run.rs b/php-rust/crates/php-runtime/src/vm/run.rs
+index 2e8123f..4785ad8 100644
+--- a/php-rust/crates/php-runtime/src/vm/run.rs
++++ b/php-rust/crates/php-runtime/src/vm/run.rs
+@@ -674,8 +674,8 @@ impl<'m> super::Vm<'m> {
+     /// a Str (`Rc::get_mut` — an alias, the const pool, or a Ref slot makes
+     /// it fail and the copy path runs: COW by construction). The fallback
+     /// reproduces the old `LoadSlot; Swap; Binary; Dup; StoreSlot` sequence
+-    /// exactly: silent slot read (`read_slot`), shared `binary_value_ab`
+-    /// (same diags/`__toString`-less funnel), typed-ref coercion on the
++    /// exactly: silent slot read (`read_slot`), object-aware `vm_stringify`
++    /// (including `__toString`), typed-ref coercion on the
+     /// STORED copy only, write-through `store_slot`, `gc_note` on the
+     /// displaced value (dtor timing). The in-place arm skips `gc_note`
+     /// legitimately: the displaced value is the very Str being extended.
+@@ -690,7 +690,9 @@ impl<'m> super::Vm<'m> {
+             }
+         }
+         let lhs = read_slot(&self.frames[top].slots[s as usize]);
+-        let v = self.binary_value_ab(BinOp::Concat, lhs, rhs)?;
++        let lhs = self.vm_stringify(&lhs)?;
++        let rhs = self.vm_stringify(&rhs.deref_clone())?;
++        let v = Zval::Str(PhpStr::concat2(lhs.as_bytes(), rhs.as_bytes()));
+         let mut stored = v.clone();
+         if !self.typed_refs.is_empty() {
+             if let Zval::Ref(cell) = &self.frames[top].slots[s as usize] {

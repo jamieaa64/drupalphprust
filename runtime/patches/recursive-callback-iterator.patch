@@ -1,0 +1,135 @@
+diff --git a/php-rust/crates/php-runtime/src/lower/prelude/spl.php b/php-rust/crates/php-runtime/src/lower/prelude/spl.php
+index 7bcd206..822a818 100644
+--- a/php-rust/crates/php-runtime/src/lower/prelude/spl.php
++++ b/php-rust/crates/php-runtime/src/lower/prelude/spl.php
+@@ -299,6 +299,7 @@ class RecursiveDirectoryIterator extends FilesystemIterator implements Recursive
+     public function key(): mixed { return $this->__cur(); }
+     public function current(): mixed {
+         if (($this->__flags & self::CURRENT_AS_PATHNAME) === self::CURRENT_AS_PATHNAME) { return $this->__cur(); }
++        if (($this->__flags & self::CURRENT_AS_SELF) === self::CURRENT_AS_SELF) { return $this; }
+         return new SplFileInfo($this->__cur());
+     }
+     public function hasChildren($allowLinks = false) {
+@@ -328,44 +329,76 @@ class RecursiveIteratorIterator implements OuterIterator {
+     const LEAVES_ONLY = 0; const SELF_FIRST = 1; const CHILD_FIRST = 2; const CATCH_GET_CHILD = 16;
+     private $__it;
+     private $__mode;
+-    private $__list = [];  // [[key, subpathname, current, depth], ...] in emit order
+-    private $__pos = 0;
+-    private $__maxDepth = -1; // -1 = unlimited (setMaxDepth(-1), the default)
++    private $__flags;
++    private $__stack = [];
++    private $__maxDepth = -1;
+     public function __construct($iterator, $mode = 0, $flags = 0) {
+         $this->__it = $iterator;
+         $this->__mode = $mode;
++        $this->__flags = $flags;
+     }
+     public function setMaxDepth($maxDepth = -1) {
+         if ($maxDepth < -1) { throw new InvalidArgumentException('Parameter maxDepth must be >= -1'); }
+         $this->__maxDepth = $maxDepth;
+     }
+     public function getMaxDepth() { return $this->__maxDepth === -1 ? false : $this->__maxDepth; }
+-    private function __collect($it, $depth) {
+-        for ($it->rewind(); $it->valid(); $it->next()) {
+-            $descend = method_exists($it, 'hasChildren') && $it->hasChildren()
+-                && ($this->__maxDepth === -1 || $depth < $this->__maxDepth);
+-            $entry = [$it->key(), method_exists($it, 'getSubPathname') ? $it->getSubPathname() : $it->key(), $it->current(), $depth];
+-            if ($descend) {
+-                if ($this->__mode === self::SELF_FIRST) { $this->__list[] = $entry; }
+-                $this->__collect($it->getChildren(), $depth + 1);
+-                if ($this->__mode === self::CHILD_FIRST) { $this->__list[] = $entry; }
+-            } else {
+-                $this->__list[] = $entry;
++    // Frames hold live iterators, never snapshots of current(): CURRENT_AS_SELF
++    // returns the mutable iterator itself, so eagerly collecting rows aliases it.
++    // States: 0 inspect, 1 descend after SELF_FIRST, 2 after children, 3 advance.
++    private function __settle() {
++        while (count($this->__stack) > 0) {
++            $depth = count($this->__stack) - 1;
++            $it = $this->__stack[$depth][0];
++            $state = $this->__stack[$depth][1];
++            if ($state === 3 || ($state === 2 && $this->__mode !== self::CHILD_FIRST)) {
++                $it->next(); $this->__stack[$depth][1] = 0; continue;
+             }
++            if ($state === 2) { $this->__stack[$depth][1] = 3; return; }
++            if (!$it->valid()) { array_pop($this->__stack); continue; }
++            if ($state === 0) {
++                try { $children = $it->hasChildren(); }
++                catch (Throwable $e) {
++                    if (($this->__flags & self::CATCH_GET_CHILD) === 0) { throw $e; }
++                    $children = false;
++                }
++                $descend = $children && ($this->__maxDepth === -1 || $depth < $this->__maxDepth);
++                if ($children && !$descend && $this->__mode === self::LEAVES_ONLY) {
++                    $this->__stack[$depth][1] = 3; continue;
++                }
++                if (!$descend) { $this->__stack[$depth][1] = 3; return; }
++                if ($this->__mode === self::SELF_FIRST) { $this->__stack[$depth][1] = 1; return; }
++            }
++            $this->__stack[$depth][1] = 2;
++            try { $child = $it->getChildren(); }
++            catch (Throwable $e) {
++                if (($this->__flags & self::CATCH_GET_CHILD) === 0) { throw $e; }
++                $this->__stack[$depth][1] = 3;
++                continue;
++            }
++            $child->rewind();
++            $this->__stack[] = [$child, 0];
+         }
+     }
+     public function rewind(): void {
+-        $this->__list = [];
+-        $this->__pos = 0;
+-        $this->__collect($this->__it, 0);
+-    }
+-    public function valid(): bool { return $this->__pos < count($this->__list); }
+-    public function next(): void { $this->__pos++; }
+-    public function key(): mixed { return $this->__list[$this->__pos][0]; }
+-    public function current(): mixed { return $this->__list[$this->__pos][2]; }
+-    public function getSubPathname() { return $this->__list[$this->__pos][1]; }
+-    public function getDepth() { return $this->__list[$this->__pos][3]; }
+-    public function getInnerIterator() { return $this->__it; }
++        $this->__it->rewind();
++        $this->__stack = [[$this->__it, 0]];
++        $this->__settle();
++    }
++    public function valid(): bool { return count($this->__stack) > 0; }
++    public function next(): void { $this->__settle(); }
++    public function key(): mixed { return $this->valid() ? $this->getInnerIterator()->key() : null; }
++    public function current(): mixed { return $this->valid() ? $this->getInnerIterator()->current() : null; }
++    // SPL forwards filesystem-specific methods to the active inner iterator.
++    public function __call($name, $args) { return $this->getInnerIterator()->$name(...$args); }
++    public function getSubIterator(?int $level = null) {
++        if ($level === null) { return $this->getInnerIterator(); }
++        if ($level === 0) { return $this->__it; }
++        if ($level < 0 || $level >= count($this->__stack)) { return null; }
++        return $this->__stack[$level][0];
++    }
++    public function getSubPathname() { return $this->getInnerIterator()->getSubPathname(); }
++    public function getDepth() { return max(0, count($this->__stack) - 1); }
++    public function getInnerIterator() { return $this->valid() ? $this->__stack[count($this->__stack) - 1][0] : $this->__it; }
+ }
+ // SplDoublyLinkedList family (Composer's dependency solver: SplQueue work
+ // queues, RuleWatchChain extends the list and removes mid-iteration). Backed by
+@@ -721,6 +754,20 @@ class CallbackFilterIterator extends FilterIterator {
+         return (bool) $cb($this->current(), $this->key(), $this->getInnerIterator());
+     }
+ }
++// Preserve the callback when wrapping children, including subclass identity.
++class RecursiveCallbackFilterIterator extends CallbackFilterIterator implements RecursiveIterator {
++    private $__recursiveCallback;
++    public function __construct(RecursiveIterator $iterator, callable $callback) {
++        parent::__construct($iterator, $callback);
++        $this->__recursiveCallback = $callback;
++    }
++    public function hasChildren(): bool {
++        return $this->getInnerIterator()->hasChildren();
++    }
++    public function getChildren() {
++        return new static($this->getInnerIterator()->getChildren(), $this->__recursiveCallback);
++    }
++}
+ // `RecursiveFilterIterator`: FilterIterator over a RecursiveIterator; children
+ // are wrapped in the SUBCLASS (new static) so the filter applies at every
+ // depth (PHPUnit's Runner/Filter iterators are built on it).

@@ -1,0 +1,72 @@
+diff --git a/php-rust/crates/php-builtins/src/serialize.rs b/php-rust/crates/php-builtins/src/serialize.rs
+index 14a2ff2..19c0e82 100644
+--- a/php-rust/crates/php-builtins/src/serialize.rs
++++ b/php-rust/crates/php-builtins/src/serialize.rs
+@@ -142,6 +142,20 @@ fn ser_body(out: &mut Vec<u8>, v: &Zval, sc: &mut SerCtx) -> Result<(), PhpError
+             out.push(b'}');
+         }
+         Zval::Object(o) => {
++            if o.borrow().info.is_enum_case {
++                let obj = o.borrow();
++                let mut name = obj.class_name.as_bytes().to_vec();
++                name.push(b':');
++                if let Some(Zval::Str(case)) = obj.props.get(b"name") {
++                    name.extend_from_slice(case.as_bytes());
++                }
++                out.extend_from_slice(b"E:");
++                out.extend_from_slice(name.len().to_string().as_bytes());
++                out.extend_from_slice(b":\"");
++                out.extend_from_slice(&name);
++                out.extend_from_slice(b"\";");
++                return Ok(());
++            }
+             let obj = o.borrow();
+             let cname = obj.class_name.as_bytes();
+             // A record staged by the VM for a legacy `Serializable` object
+diff --git a/php-rust/crates/php-runtime/src/unserialize.rs b/php-rust/crates/php-runtime/src/unserialize.rs
+index e81f440..b249478 100644
+--- a/php-rust/crates/php-runtime/src/unserialize.rs
++++ b/php-rust/crates/php-runtime/src/unserialize.rs
+@@ -27,6 +27,8 @@ pub enum Ser {
+     /// `C:<len>:"<class>":<len>:{<payload>}` — a legacy `Serializable` record:
+     /// class name and the raw opaque payload its `unserialize()` receives.
+     CObject(Vec<u8>, Vec<u8>),
++    /// `E:<len>:"Class:Case";` — an enum singleton.
++    Enum(Vec<u8>, Vec<u8>),
+     /// `r:<n>;` — the same object as the value numbered `n` (handle copy).
+     ObjRef(i64),
+     /// `R:<n>;` — a reference aliasing the value slot numbered `n`.
+@@ -199,6 +201,14 @@ impl Parser<'_> {
+                 self.eat(b'}')?;
+                 Some(Ser::Object(class, props))
+             }
++            b'E' => {
++                self.i += 1;
++                self.eat(b':')?;
++                let name = self.string_body()?;
++                let colon = name.iter().position(|b| *b == b':')?;
++                if colon == 0 || colon + 1 == name.len() { return None; }
++                Some(Ser::Enum(name[..colon].to_vec(), name[colon + 1..].to_vec()))
++            }
+             b'C' => {
+                 // Legacy Serializable record: the braces wrap `<len>` raw
+                 // payload bytes, NOT nested serialized values.
+diff --git a/php-rust/crates/php-runtime/src/vm/mod.rs b/php-rust/crates/php-runtime/src/vm/mod.rs
+index 5af0f3f..ac03f2b 100644
+--- a/php-rust/crates/php-runtime/src/vm/mod.rs
++++ b/php-rust/crates/php-runtime/src/vm/mod.rs
+@@ -10310,6 +10310,14 @@ impl<'m> Vm<'m> {
+             Ser::Long(n) => Zval::Long(n),
+             Ser::Double(d) => Zval::Double(d),
+             Ser::Str(bytes) => Zval::Str(PhpStr::new(bytes)),
++            Ser::Enum(class, case) => {
++                let cid = self.resolve_class_autoload(&class)?.ok_or_else(|| PhpError::Error("Cannot unserialize unknown enum".to_string()))?;
++                let index = self.classes[cid].enum_cases.iter().position(|c| c.name.as_ref() == case.as_slice())
++                    .ok_or_else(|| PhpError::Error("Cannot unserialize unknown enum case".to_string()))?;
++                let value = Zval::Object(self.enum_case(cid, index as u32));
++                ctx.objs.insert(slot, value.clone());
++                value
++            }
+             Ser::Array(items) => {
+                 let mut arr = PhpArray::new();
+                 for (k, v) in items {

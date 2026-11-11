@@ -1,0 +1,19 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/host.rs b/php-rust/crates/php-runtime/src/vm/host.rs
+index 4d9c885..2b18929 100644
+--- a/php-rust/crates/php-runtime/src/vm/host.rs
++++ b/php-rust/crates/php-runtime/src/vm/host.rs
+@@ -4129,6 +4129,14 @@ impl<'m> super::Vm<'m> {
+         };
+         let latin1 = txt.is_latin1();
+         let subj = txt.as_str();
++        // Byte-mode subjects are Latin1-decoded for the text regex engines.
++        // Translate the PHP byte offset into that view before searching; the
++        // capture offsets are translated back by latin1_fix below.
++        let start = if latin1 {
++            subject[..start].iter().map(|b| if *b < 128 { 1 } else { 2 }).sum()
++        } else {
++            start
++        };
+         let (ret, matches) = match re.captures_at(subj, start) {
+             Some(mut caps) => {
+                 if latin1 {

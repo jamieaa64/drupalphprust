@@ -1,0 +1,19 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/mod.rs b/php-rust/crates/php-runtime/src/vm/mod.rs
+index 9fb3e97..e45938c 100644
+--- a/php-rust/crates/php-runtime/src/vm/mod.rs
++++ b/php-rust/crates/php-runtime/src/vm/mod.rs
+@@ -10490,6 +10490,14 @@ impl<'m> Vm<'m> {
+                 Some(rest) => rest.to_vec(),
+                 None => k,
+             };
++            // __serialize may intentionally emit plain names without an
++            // __unserialize hook (Symfony Definition does this). Zend restores
++            // those into the most-derived declared slot, including privates.
++            let k = if k.first() != Some(&0) {
++                self.prop_decl_storage_key(cid, &k).into_owned()
++            } else {
++                k
++            };
+             if prop_readonly_decl(&self.classes, cid, &k).is_some() {
+                 rc.borrow_mut().rare_mut().readonly_init.push(k.as_slice().into());
+             }

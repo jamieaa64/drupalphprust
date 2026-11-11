@@ -1,0 +1,2 @@
+# Unified diffs intentionally contain single-space context lines. Preserve bytes.
+runtime/patches/*.patch -whitespace

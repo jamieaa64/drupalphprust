@@ -1,0 +1,34 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/mod.rs b/php-rust/crates/php-runtime/src/vm/mod.rs
+--- a/php-rust/crates/php-runtime/src/vm/mod.rs
++++ b/php-rust/crates/php-runtime/src/vm/mod.rs
+@@ -9795,6 +9795,12 @@
+                 }
+             }
+         }
++        fn export_value(value: &Zval) -> Zval {
++            match value {
++                Zval::Ref(cell) if Rc::strong_count(cell) == 1 => cell.borrow().clone(),
++                other => other.clone(),
++            }
++        }
+         let mut arr = PhpArray::new();
+         for name in &order {
+             // The scope's view of the declared name: its resolved slot, a plain
+@@ -9812,7 +9818,7 @@
+                 self.push_hook(func, Zval::Object(o.clone()), oid, name, None);
+                 let val = self.drive_to_return(baseline)?;
+                 arr.insert(Key::from_bytes(name), val);
+-            } else if let Some(val) = o.borrow().props.get(slot.as_deref().unwrap_or(name)).cloned() {
++            } else if let Some(val) = o.borrow().props.get(slot.as_deref().unwrap_or(name)).map(export_value) {
+                 // An uninitialized typed property (`Undef`) is omitted; the entry
+                 // surfaces under its source-level name, whatever the storage key.
+                 if !matches!(val, Zval::Undef) {
+@@ -9828,7 +9834,7 @@
+             b.props
+                 .iter()
+                 .filter(|(name, _)| !declared.contains(*name) && !name.starts_with(b"\0"))
+-                .map(|(name, val)| (name.to_vec().into_boxed_slice(), val.clone()))
++                .map(|(name, val)| (name.to_vec().into_boxed_slice(), export_value(val)))
+                 .collect()
+         };
+         for (name, val) in dynamic {

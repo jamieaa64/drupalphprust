@@ -1,0 +1,12 @@
+--- a/php-rust/crates/php-runtime/src/vm/mod.rs
++++ b/php-rust/crates/php-runtime/src/vm/mod.rs
+@@ -12008,6 +12008,9 @@
+     /// private-storage key, uninitialized-typed-property error, and the
+     /// "Undefined property"/"Attempt to read property" warnings.
+     fn prop_read_sync(&mut self, top: usize, obj: Zval, name: &[u8]) -> Result<Zval, PhpError> {
++        // A preceding by-reference __get may leave the receiver wrapped.
++        // R-fetch still dispatches hooks and magic on the underlying object.
++        let obj = obj.deref_clone();
+         let cur = self.frames[top].class;
+         let target = self.lazy_prop_access(obj, name, cur, Some(false), (MagicKind::Get, b"__get"))?;
+         let mut key: Cow<[u8]> = Cow::Borrowed(name);

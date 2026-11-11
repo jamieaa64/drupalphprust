@@ -1,0 +1,22 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/calls.rs b/php-rust/crates/php-runtime/src/vm/calls.rs
+index ea6e1b5..3515c74 100644
+--- a/php-rust/crates/php-runtime/src/vm/calls.rs
++++ b/php-rust/crates/php-runtime/src/vm/calls.rs
+@@ -904,6 +904,7 @@ impl<'m> Vm<'m> {
+                     let b = s.as_bytes();
+                     // `"Class::method"` is a static-method callable.
+                     if let Some(pos) = b.windows(2).position(|w| w == b"::") {
++                        self.resolve_class_autoload(&b[..pos])?;
+                         let cls = Zval::Str(PhpStr::new(b[..pos].to_vec()));
+                         let m = b[pos + 2..].to_vec();
+                         return self.make_method_closure(&cls, &m, caller_class).ok_or_else(nc);
+@@ -947,6 +948,9 @@ impl<'m> Vm<'m> {
+                     let elems: Vec<Zval> = a.iter().map(|(_, v)| v.deref_clone()).collect();
+                     if elems.len() == 2 {
+                         if let Zval::Str(m) = &elems[1] {
++                            if let Zval::Str(class) = &elems[0] {
++                                self.resolve_class_autoload(class.as_bytes())?;
++                            }
+                             if let Some(c) =
+                                 self.make_method_closure(&elems[0], m.as_bytes(), caller_class)
+                             {

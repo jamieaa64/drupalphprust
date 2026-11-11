@@ -1,0 +1,11 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/mod.rs b/php-rust/crates/php-runtime/src/vm/mod.rs
+--- a/php-rust/crates/php-runtime/src/vm/mod.rs
++++ b/php-rust/crates/php-runtime/src/vm/mod.rs
+@@ -9860,6 +9860,7 @@
+         // L-CE1 (S-154): slice diretta, niente to_vec — il hit-path di
+         // class_exists non deve allocare (k=2→0 col LcKey a valle).
+         let name = b.strip_prefix(b"\\").unwrap_or(b);
++        if name.is_empty() { return Ok(None); }
+         if autoload {
+             // L-AL1 (S-157): passa lo ZStr originale — sul miss l'arg del
+             // loader diventa un rc-clone invece di una copia.

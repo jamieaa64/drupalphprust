@@ -1,0 +1,51 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/session.rs b/php-rust/crates/php-runtime/src/vm/session.rs
+index 0c5f788..ca7552a 100644
+--- a/php-rust/crates/php-runtime/src/vm/session.rs
++++ b/php-rust/crates/php-runtime/src/vm/session.rs
+@@ -1358,6 +1358,10 @@ impl<'m> Vm<'m> {
+         self.sess_mod_open()?;
+         let new_id = self.session.id.clone();
+         let _ = self.sess_mod_read("session_regenerate_id", &new_id)?;
++        // The browser must use the new ID on the next request.
++        if self.web {
++            self.web_session_cookie();
++        }
+         // The fresh id has no backing payload yet: force a write at commit.
+         self.session.snapshot = None;
+         Ok(Zval::Bool(true))
+diff --git a/php-rust/crates/php-runtime/src/vm/websapi.rs b/php-rust/crates/php-runtime/src/vm/websapi.rs
+index 68c550d..2915ab3 100644
+--- a/php-rust/crates/php-runtime/src/vm/websapi.rs
++++ b/php-rust/crates/php-runtime/src/vm/websapi.rs
+@@ -681,8 +681,8 @@ impl<'m> Vm<'m> {
+     /// The web cache-limiter + session cookie headers `session_start` sends
+     /// (default `nocache` limiter; cookie per session.cookie_* ini) —
+     /// oracle-pinned bytes and order.
+-    pub(super) fn web_session_headers(&mut self, send_cookie: bool) {
+-        if send_cookie && self.ini.get_bool(b"session.use_cookies") {
++    pub(super) fn web_session_cookie(&mut self) {
++        if self.ini.get_bool(b"session.use_cookies") {
+             let name = self.ini.get(b"session.name").unwrap_or(b"PHPSESSID").to_vec();
+             let path = self.ini.get(b"session.cookie_path").unwrap_or(b"/").to_vec();
+             let domain = self.ini.get(b"session.cookie_domain").unwrap_or(b"").to_vec();
+@@ -703,8 +703,20 @@ impl<'m> Vm<'m> {
+             let line = build_set_cookie(
+                 &name, &id, false, expires, &path, &domain, secure, httponly, &samesite,
+             );
++            // Regeneration replaces an earlier cookie for this session, while
++            // retaining unrelated cookies set by the application.
++            let mut prefix = b"Set-Cookie: ".to_vec();
++            prefix.extend_from_slice(&name);
++            prefix.push(b'=');
++            self.response_headers.retain(|h| !h.starts_with(&prefix));
+             self.response_headers.push(line);
+         }
++    }
++
++    pub(super) fn web_session_headers(&mut self, send_cookie: bool) {
++        if send_cookie {
++            self.web_session_cookie();
++        }
+         match self.ini.get(b"session.cache_limiter").unwrap_or(b"nocache") {
+             b"nocache" => {
+                 self.response_headers

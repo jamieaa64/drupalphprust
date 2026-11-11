@@ -1,0 +1,133 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/arrays.rs b/php-rust/crates/php-runtime/src/vm/arrays.rs
+--- a/php-rust/crates/php-runtime/src/vm/arrays.rs
++++ b/php-rust/crates/php-runtime/src/vm/arrays.rs
+@@ -1384,8 +1384,8 @@
+                         })
+                         .unwrap_or_default();
+                     let mut val =
+-                        self.call_method_sync(obj, b"offsetGet", vec![key])?.deref_clone();
+-                    if !matches!(val, Zval::Object(_)) {
++                        self.call_method_ref_sync(obj, b"offsetGet", vec![key])?;
++                    if !matches!(val, Zval::Object(_) | Zval::Ref(_)) {
+                         // Writing through a by-value offsetGet result mutates a
+                         // temporary — PHP's notice, and no write happens.
+                         self.diags.push(Diag::Notice(format!(
+@@ -1400,16 +1400,15 @@
+                     if let Some(d) = &dropped2 {
+                         self.gc_note(d);
+                     }
+-                    r?;
+-                    // H-70.1: the nested walk's guards are gone here; the
+-                    // nested result value is discarded (as `r` above), so
+-                    // Set-shape stores suffice for all three leaves.
++                    result = r?;
++                    // Preserve the expression result as well as the nested write.
+                     if let Some(rl) = refw2.take() {
+                         // H-72.3: a busy cell is counted and SKIPPED — never
+                         // `op(Null, ·)` fabricated into the store.
+                         let store = match rl {
+                             super::RefLeaf::Concat { cell, old, rhs } => {
+                                 let new = self.apply_binop_ovl(crate::hir::BinOp::Concat, &old, &rhs)?;
++                                result = new.clone();
+                                 cell.upgrade().map(|cell| (cell, new))
+                             }
+                             super::RefLeaf::Set { cell, value } => Some((cell, value)),
+@@ -1425,12 +1424,13 @@
+                                 match old {
+                                     Some(old) => {
+                                         let new = self.apply_binop_ovl(op, &old, &rhs)?;
++                                        result = new.clone();
+                                         Some((cell, new))
+                                     }
+                                     None => None,
+                                 }
+                             }
+-                            super::RefLeaf::IncDec { cell, inc, pre: _ } => {
++                            super::RefLeaf::IncDec { cell, inc, pre } => {
+                                 let old = match cell.try_borrow() {
+                                     Ok(g) => Some(g.clone()),
+                                     Err(_) => {
+@@ -1441,11 +1441,13 @@
+                                 };
+                                 match old {
+                                     Some(mut new) => {
++                                        let old = new.clone();
+                                         if inc {
+                                             super::ops::increment(&mut new, &mut self.diags)?;
+                                         } else {
+                                             super::ops::decrement(&mut new, &mut self.diags)?;
+                                         }
++                                        result = if pre { new.clone() } else { old };
+                                         Some((cell, new))
+                                     }
+                                     None => None,
+@@ -1992,7 +1994,7 @@
+                         self.magic_guard.remove(&gkey);
+                     }
+                     let mut val = r?.deref_clone();
+-                    if !matches!(val, Zval::Object(_)) {
++                    if !matches!(val, Zval::Object(_) | Zval::Ref(_)) {
+                         self.diags.push(Diag::Notice(format!(
+                             "Indirect modification of overloaded property {cname}::${prop} has no effect"
+                         )));
+@@ -2097,8 +2099,8 @@
+                             })
+                         })
+                         .unwrap_or_default();
+-                    let mut val = self.call_method_sync(obj, b"offsetGet", vec![key])?.deref_clone();
+-                    if !matches!(val, Zval::Object(_)) {
++                    let mut val = self.call_method_ref_sync(obj, b"offsetGet", vec![key])?;
++                    if !matches!(val, Zval::Object(_) | Zval::Ref(_)) {
+                         // Writing through a by-value offsetGet result mutates a
+                         // temporary — PHP's notice, and no write happens.
+                         self.diags.push(Diag::Notice(format!(
+@@ -2155,8 +2157,8 @@
+                         })
+                         .unwrap_or_default();
+                     let mut val =
+-                        self.call_method_sync(obj, b"offsetGet", vec![key])?.deref_clone();
+-                    if !matches!(val, Zval::Object(_)) {
++                        self.call_method_ref_sync(obj, b"offsetGet", vec![key])?;
++                    if !matches!(val, Zval::Object(_) | Zval::Ref(_)) {
+                         // Unsetting through a by-value offsetGet result would
+                         // mutate a temporary — Zend's notice, nothing removed.
+                         self.diags.push(Diag::Notice(format!(
+diff --git a/php-rust/crates/php-runtime/src/vm/mod.rs b/php-rust/crates/php-runtime/src/vm/mod.rs
+index 5af0f3f..ac6bd2b 100644
+--- a/php-rust/crates/php-runtime/src/vm/mod.rs
++++ b/php-rust/crates/php-runtime/src/vm/mod.rs
+@@ -7678,6 +7678,20 @@ impl<'m> Vm<'m> {
+         self.drive_to_return(baseline)
+     }
+ 
++    // Write-context ArrayAccess traversal must retain a by-reference getter.
++    fn call_method_ref_sync(&mut self, recv: Zval, method: &[u8], args: Vec<Zval>) -> Result<Zval, PhpError> {
++        let baseline = self.frames.len();
++        let method = if method == b"offsetGet"
++            && object_class_id(&recv).is_some_and(|cid| self.classes[cid].name.as_ref() == b"WeakMap")
++        { &b"__dimensionGet"[..] } else { method };
++        self.enter_object_method(recv, method, args, RetMode::Stack)?;
++        if self.frames.len() == baseline {
++            return Ok(self.frames[baseline - 1].stack.pop().expect("sync method result"));
++        }
++        self.frames.last_mut().expect("callee frame").flags.set(FrameFlags::RET_DEREF, false);
++        self.drive_to_return(baseline)
++    }
++
+     /// Operator overloading for `BcMath\Number` (the engine's `do_operation` /
+     /// `compare_object` for that class). Returns `Some(result)` when a Number is
+     /// involved and the operation applies, else `None` (the caller runs the
+diff --git a/php-rust/crates/php-runtime/src/lower/prelude/core.php b/php-rust/crates/php-runtime/src/lower/prelude/core.php
+index cd8898c..d7eb489 100644
+--- a/php-rust/crates/php-runtime/src/lower/prelude/core.php
++++ b/php-rust/crates/php-runtime/src/lower/prelude/core.php
+@@ -534,7 +534,8 @@ class WeakMap implements ArrayAccess, Countable, IteratorAggregate {
+         $id = spl_object_id($object);
+         return $this->__live($id) !== null && $this->__entries[$id][1] !== null;
+     }
+-    public function offsetGet($object) {
++    public function offsetGet($object) { return $this->__dimensionGet($object); }
++    private function &__dimensionGet($object) {
+         if (!is_object($object)) {
+             throw new TypeError("WeakMap key must be an object");
+         }
