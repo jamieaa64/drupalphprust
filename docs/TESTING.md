@@ -1,5 +1,9 @@
 # Testing and comparison plan
 
+For the broader study of capabilities, cost, security, agent workflows and Drupal
+architecture opportunities, read [Comparison study](COMPARISON.md). This document
+provides execution controls; latency is only one experiment.
+
 Keep four independent verdicts: **runtime compatibility**, **installer/DDEV setup**,
 **Coder accessibility**, and **performance**. Passing one is not proof of the others.
 

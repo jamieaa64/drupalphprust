@@ -1,23 +1,27 @@
-# 12. Comparison tooling
+# 12. Compare capabilities and tradeoffs
 
-Status: blocked
+Status: active
 
 Destination: This repository
 
-Fair performance comparison depends on correct Drupal behavior and reproducible setup.
+Design the study now; Drupal outcome claims wait for matching correctness.
+Latency is one dimension, not the purpose of the comparison.
 
 ## Work
 
-- Build repeatable Zend/PHP Rust comparison commands and concise result reports.
-- Record versions, scope differences, warmup, cache state and resource limits.
+- Build a reproducible experiment runner and report for speed, resource cost, security boundaries, operations and agent-assisted development.
+- Choose workloads that expose differences: slow dependencies, constrained memory, parallel sites, failure recovery and debugging.
+- Show wins, losses and inconclusive results; separate measured behavior from hypotheses.
 
 ## Test / finish
 
-- Gate measurements on matching responses and database effects.
-- Repeat runs; report latency distributions and failures, not an unsupported speed claim.
+- Use matched application/configuration/seed and document server-stack differences.
+- Publish repeatable recipes, correctness checks, resource samples and uncertainty for each experiment.
+- Compare completed useful work per budget, not just fast responses; apply the security and agent controls in the study plan.
 
 ## Upstream
 
-Project work belongs here; send only proven generic defects to their owning upstream.
+Keep comparison tooling here. Turn reproducible defects into minimal reports for
+the owning project. Do not present hypothetical architectural benefits as results.
 
-[Overall plan](README.md) · [Previous](11-fast-seed.md) · [Evidence / guidance](../../../docs/TESTING.md)
+[Overall plan](README.md) · [Previous](11-fast-seed.md) · [Next](13-upstream-process.md) · [Study design](../../../docs/COMPARISON.md) · [Now versus changed Drupal](14-drupal-opportunities.md)

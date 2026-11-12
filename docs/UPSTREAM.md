@@ -97,3 +97,28 @@ do not submit through an API to bypass that preference.
 The [current plan](../.agents/plan/current/README.md) assigns each patch below to
 one implementation/contribution task. Partial status does not imply upstream
 readiness; each task includes remaining work and acceptance checks.
+
+## Establish the submission process before publishing
+
+Owned by [task 13](../.agents/plan/current/13-upstream-process.md). The existing
+patch map is not a verified guide to each maintainer's current submission process.
+For each actual destination, research its current contribution/process files,
+issue tracker, supported base branch, test commands, sign-off/licensing rules and
+AI-assistance disclosure policy. Record exact source links and date checked;
+resolve conflicting historical instructions before preparing a submission.
+
+Create a local contribution register containing: fix, destination, duplicate issue
+or PR, prerequisites, branch/base commit, minimal fixture, required gate results,
+draft title/body, review status and next action. Start with one small isolated fix
+to prove the process before splitting the larger driver/compiler changes.
+
+Prepare a dry-run submission packet with before/after evidence, minimal diff,
+executed validation and known limits. Document the exact user-run authentication,
+fork/push and issue/PR steps once the destination and branch are verified. Do not
+invent commands or post maintainer questions during research. Publication remains
+gated on end-to-end success and user approval.
+
+Also document the follow-through: addressing review, rerunning dependent branches,
+recording upstream acceptance, updating the pinned runtime and removing a local
+patch only after its replacement passes the combined suite. An accepted upstream
+change is not automatically integrated into this project.

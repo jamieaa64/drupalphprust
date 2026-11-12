@@ -1,7 +1,7 @@
 # Overall plan
 
 Make the agreed out-of-box Drupal CMS baseline run correctly on PHP Rust,
-install it through DDEV / One Line Installer, then measure it against Zend.
+install it through DDEV / One Line Installer, then explore its capabilities, limitations and tradeoffs against Zend.
 Coder is optional. Migration tooling, OAuth and MCP are excluded.
 
 These are agent implementation/contribution tasks. Tests are acceptance criteria
@@ -20,13 +20,18 @@ not evidence that the rest of Drupal works.
 9. [Portable one-line installation](09-installer.md)
 10. [Coder tracker integration](10-coder-tracker.md)
 11. [Fast build and clean seed](11-fast-seed.md)
-12. [Comparison tooling](12-benchmark.md)
+12. [Compare capabilities and tradeoffs](12-benchmark.md)
+13. [Work out upstream submission process](13-upstream-process.md)
+14. [Benefits now versus Drupal changes](14-drupal-opportunities.md)
 
 Resolve Fiber/Generator suspension first; installer and Coder integration can
 progress independently. Validate homepage, login, create, edit and view after
 runtime fixes. That journey checks compatibility; it is not the project's purpose.
 Prepare independent upstream changes along the way, submit only after end-to-end
-acceptance and user approval. Optional CMS gaps remain deferred.
+acceptance and user approval. Optional CMS gaps remain deferred. Comparison design and upstream-process research
+can start now; claims about running Drupal require executed experiments.
+[Comparison study](../../../docs/COMPARISON.md) separates today's behavior from
+opportunities requiring Drupal or runtime changes.
 
 [Tracker](../../../tracker.html) · [Summary](../../../PROGRESS.md) ·
 [Handover](../../../docs/HANDOVER.md) · [Testing](../../../docs/TESTING.md) ·
