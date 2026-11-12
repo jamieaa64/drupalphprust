@@ -33,5 +33,22 @@ Not submitted. Implementation has not started; this is not a patched task.
 Prepare a separate contribution only after implementation, review and recorded tests.
 The user handles authentication and pushes; no upstream submission yet.
 
+## Verified continuation on phprusttest1 (2026-11-12)
+
+- Reconstructed all 31 patches at the pinned upstream revision in `.work/php-rust`.
+- Confirmed the installed homepage still returns HTTP 500 for missing XMLWriter;
+  standard PHP and tracker return HTTP 200 (not full browser acceptance).
+- Traced the dependency to Simple Sitemap's `SitemapWriter extends XMLWriter`,
+  whose constructor does not call a parent constructor. Its generators use memory
+  output, indentation, document/element boundaries, attributes, PI and comments.
+- Added standalone `tests/probes/xmlwriter-sitemap.php` and corresponding PHPT.
+  Standard PHP 8.4.27 / libxml 2.9.14 passes with empty stderr; installed Rust exits
+  255 at the subclass declaration. The fixture covers escaping, UTF-8, inherited
+  construction, output retention/draining and reopening a memory writer.
+- Rust editing awaits resolution of the upstream Serena-only tooling rule:
+  Serena is unavailable in this session. No runtime patch or class stub added.
+
+See [continuation receipt](../../../docs/receipts/2026-11-12-phprusttest1-xmlwriter.md).
+
 [Overall plan](README.md) · [Runtime completion](01-fiber-generators.md) ·
 [Installation evidence](../../../docs/receipts/2026-11-12-tracker-landing.md)
