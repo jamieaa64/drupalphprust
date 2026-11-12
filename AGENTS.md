@@ -15,7 +15,11 @@ Working rules:
 
 - Keep `.agents/plan/current`, `archive` and `future`. Archive a completed/superseded
   plan with its result; do not turn historical investigation notes into current facts.
-- Update `PROGRESS.md` and the current plan after meaningful verified progress.
+- Keep `PROGRESS.md` short. Update the relevant numbered step in `.agents/plan/current/`
+  after meaningful verified progress; each step owns its status, work and tests.
+  Regenerate `tracker.html` with `python3 scripts/tracker.py` after Markdown changes
+  under PROGRESS.md, docs/ or .agents/plan/. The live preview reads those files directly.
+- Update the current plan after meaningful verified progress.
   Record exact command, runtime/image, test result and remaining limits in a receipt.
 - A HTTP 200 containing a fatal error, warnings or class-name placeholders is failure.
 - Use standard PHP in DDEV for Composer and Drush. Keep runtime compatibility,

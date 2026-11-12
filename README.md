@@ -14,7 +14,8 @@ There is no proven speed advantage and no claim that untouched Drupal CMS works.
 
 ## Start here
 
-- [Simple progress checklist](PROGRESS.md)
+- [HTML progress tracker](tracker.html) · [live preview instructions](docs/TRACKER.md)
+- [Short progress summary](PROGRESS.md)
 - [Overall and current plan](.agents/plan/current/README.md)
 - [New-agent handover](docs/HANDOVER.md)
 - [Install and use](docs/USAGE.md)

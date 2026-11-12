@@ -1,29 +1,11 @@
 # Drupal on PHP Rust
 
-**Goal:** Drupal CMS on PHP Rust, set up through DDEV / One Line Installer and
-compared with standard PHP. No migration tooling.
+Updated: 2026-11-12
 
-**Now:** Views compiler/reference fix passes regression checks; all 29 combined
-Zend/Rust probes pass, including SplFileInfo timestamps. **Next blocker:** Fiber
-suspension inside a Generator during page rendering. Minimal reproduction saved.
+**Now:** Fix Fiber suspension inside a Generator. Local installer verification can run alongside it.
 
-- [x] Create independent source checkout outside the migration folder.
-- [x] Use the repo-only installer command: Local first, optional `--config coder`.
-- [x] Host choice and optional developer launcher/service checks: eight tests pass.
-- [x] Check reachable Git history and tracked source for common secret/private-file patterns.
-- [ ] Complete local installer smoke: awaiting user-run interactive DDEV setup.
-- [x] Preserve runtime patches and focused regressions; verify all 31 patches reconstruct the candidate.
-- [x] Document current blocker, known limitations and how another agent resumes.
-- [x] Prepare One Line Installer config and DDEV runtime service.
-- [ ] Execute the new installer/DDEV integration smoke test (deferred for now).
-- [x] Earlier site: database fixtures, homepage and persistent login work.
-- [x] Validate Views compiler/reference fix, including alias rebinding and finally.
-- [ ] Verify dashboard and create → edit → view.
-- [x] Run the expanded combined runtime suite (29 probes; HTTP/DB suites remain separate).
-- [ ] Smoke-test the same setup in Coder freeform.
-- [ ] Package a clean reusable seed for fast setup.
-- [ ] Measure against normal Drupal CMS using release builds.
-- [ ] Finalise separate upstream contribution commits after E2E success.
+**Verified:** 31 patches reconstruct; 29 runtime probes and 8 setup checks pass.
 
-Details: [.agents/plan/current/README.md](.agents/plan/current/README.md).
-No full Drupal compatibility or performance claim yet. Updated 2026-11-12.
+**Still unverified:** Complete Drupal rendering, local/Coder installation and performance comparisons.
+
+[Overall plan](.agents/plan/current/README.md) · [Tracker help](docs/TRACKER.md)
