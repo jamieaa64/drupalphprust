@@ -1,5 +1,5 @@
 --TEST--
-SplFileInfo ctime for files, directories, iterators and stat failure
+SplFileInfo ctime stat failure bypasses user error handlers
 --FILE--
 <?php
 $dir = sys_get_temp_dir() . '/phpr-ctime-' . getmypid();
@@ -13,8 +13,10 @@ try {
  var_dump($directory->getCTime() === filectime($dir));
  $it = new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS);
  var_dump($it->getCTime() === filectime($file));
+ set_error_handler(function ($severity, $message) { throw new ErrorException($message); });
  try { (new SplFileInfo($dir.'/absent'))->getCTime(); }
  catch (RuntimeException $e) { echo str_replace($dir, 'FIXTURE', $e->getMessage()), "\n"; }
+ restore_error_handler();
 } finally { unlink($file); rmdir($dir); }
 
 --EXPECT--

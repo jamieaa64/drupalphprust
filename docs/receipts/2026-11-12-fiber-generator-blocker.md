@@ -6,7 +6,12 @@
 The combined differential runner passes all 29 probes, including
 `spl-fileinfo-ctime`. The timestamp fixture covers file/directory/iterator values
 and a missing-path RuntimeException, with empty stderr and byte-identical Zend
-output. This closes the missing-method failure on Drupal's update-check path.
+output. Review found that `@filectime` still invokes a user error handler; the
+final patch uses a silent internal metadata lookup instead. The extended fixture
+installs a throwing error handler and still receives RuntimeException. Re-review
+found no additional blocker. The corrected build and all 29 probes exit 0
+(`results/combined-runtime-ctime-handler.log` in the disposable workspace).
+The 31-patch reconstruction also matches all three timestamp source files. This closes the missing-method failure on Drupal's update-check path.
 
 The new candidate remains `drupalphprust:dev-release`, served by the disposable
 comparison container for DDEV project `drupal-oob`. Browser `/node/add/page`

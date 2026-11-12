@@ -5,7 +5,7 @@
      public function getPerms() { return fileperms($this->__path); }
      public function getMTime() { return filemtime($this->__path); }
 +    public function getCTime(): int {
-+        $time = @filectime($this->__path);
++        $time = _spl_filectime($this->__path);
 +        if ($time === false) {
 +            throw new RuntimeException('SplFileInfo::getCTime(): stat failed for ' . $this->__path);
 +        }
@@ -14,3 +14,32 @@
      public function isReadable() { return is_readable($this->__path); }
      public function isWritable() { return is_writable($this->__path); }
      public function getExtension() {
+--- a/php-rust/crates/php-builtins/src/file.rs
++++ b/php-rust/crates/php-builtins/src/file.rs
+@@ -1970,6 +1970,16 @@
+ pub fn fileatime(argv: &[Zval], ctx: &mut Ctx) -> Result<Zval, PhpError> {
+     file_stat_long(argv, ctx, "fileatime", |v| v[8])
+ }
++/// SPL performs stat without emitting a warning or invoking user error handlers.
++/// The prelude turns a failure into its method-specific RuntimeException.
++pub fn spl_filectime(argv: &[Zval], ctx: &mut Ctx) -> Result<Zval, PhpError> {
++    let path = arg_os_path(argv, ctx);
++    Ok(match std::fs::metadata(path) {
++        Ok(metadata) => Zval::Long(stat_vals(&metadata)[10]),
++        Err(_) => Zval::Bool(false),
++    })
++}
++
+ pub fn filectime(argv: &[Zval], ctx: &mut Ctx) -> Result<Zval, PhpError> {
+     file_stat_long(argv, ctx, "filectime", |v| v[10])
+ }
+--- a/php-rust/crates/php-builtins/src/lib.rs
++++ b/php-rust/crates/php-builtins/src/lib.rs
+@@ -283,6 +283,7 @@
+     add(b"filemtime", file::filemtime);
+     add(b"fileatime", file::fileatime);
+     add(b"filectime", file::filectime);
++    add(b"_spl_filectime", file::spl_filectime);
+     add(b"fileperms", file::fileperms);
+     add(b"fileinode", file::fileinode);
+     add(b"fileowner", file::fileowner);
