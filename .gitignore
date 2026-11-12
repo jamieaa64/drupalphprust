@@ -45,3 +45,6 @@
 *.key
 *.p12
 .ddev/.runtime-target
+
+# Generated runtime URL receipt
+.ddev/.runtime-urls

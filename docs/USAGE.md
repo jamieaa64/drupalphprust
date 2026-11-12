@@ -109,7 +109,13 @@ ddev logs -s phpr
 ddev stop
 ```
 
-The regular DDEV URL uses Zend PHP. PHP Rust is `http://127.0.0.1:18090/` on the
+The installer prints two named URLs and saves them in `.ddev/.runtime-urls`:
+`https://php.<project-host>/` runs standard PHP, and `https://rust.<project-host>/`
+runs PHP Rust. It derives the host and scheme from DDEV, rather than the folder
+name. The original DDEV URL continues to use Zend. These are separate service
+routes, not two names for the standard PHP web container.
+
+The direct PHP Rust fallback remains `http://127.0.0.1:18090/` on the
 machine running Docker, not necessarily your laptop. Choose another port with launcher `--runtime-port 18091`. It is written into the
 managed service, so ordinary DDEV starts need no exported variables. To change it
 on an existing installed site, run `PHPR_HTTP_PORT=18091 bash scripts/enable-runtime.sh dev-release`.
@@ -150,3 +156,15 @@ bash scripts/enable-runtime.sh release
 This changes the runtime image, not the application's Composer lock or database.
 Follow TESTING.md for cache/seed isolation and repeatable results. The included
 benchmark is sequential HTTP latency tooling, not a complete load-testing system.
+
+## Named-route checks
+
+After runtime setup, read `.ddev/.runtime-urls` and open both URLs. Confirm the
+Rust hostname appears only on the phpr service in `ddev utility compose-config`.
+Do not add it to `additional_hostnames`, which would also route it to standard PHP.
+The web service retains existing DDEV aliases and adds the labelled PHP alias.
+Custom hostnames without wildcard DNS may need normal DDEV/local hostname setup.
+Check TLS and Drupal trusted-host settings on the installed site. Use separate
+browser contexts for the two runtimes; application cookie settings may span hosts.
+
+Routing uses DDEV's documented [custom service hostnames](https://docs.ddev.com/en/stable/users/extend/custom-compose-files/).

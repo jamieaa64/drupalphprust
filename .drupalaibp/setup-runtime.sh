@@ -27,5 +27,5 @@ printf '%s\n' "$target" > .ddev/.runtime-target
 if [[ "$target" == coder ]]; then
   echo 'Coder: use your existing workspace routes or a private coder port-forward tunnel.'
 else
-  echo 'Local setup: use ddev describe for Zend and the configured loopback port for PHP Rust.'
+  echo 'Local setup: use the labelled php. and rust. URLs printed above; saved in .ddev/.runtime-urls.'
 fi

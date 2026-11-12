@@ -25,7 +25,7 @@
   },
   "append_welcome_text": [
     "PHP Rust is experimental. Check .ddev/.runtime-ready and the phpr service; installer completion alone is not runtime acceptance.",
-    "Read docs/USAGE.md and .agents/plan/current/README.md. The ordinary DDEV URL serves Zend; PHP Rust binds loopback port 18090."
+    "Two runtimes: php.<project-host> is standard PHP; rust.<project-host> is PHP RUST. Exact URLs: .ddev/.runtime-urls. Coder needs its private routing/tunnel; see docs/CODER.md."
   ],
   "weight": -10,
   "questions": [

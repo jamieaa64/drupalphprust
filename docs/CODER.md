@@ -38,7 +38,10 @@ user-managed Git authentication; never add credentials to the remote URL.
 
 ## Access the site privately
 
-The Rust service binds only to workspace loopback. On your laptop:
+The named `php.<project-host>` and `rust.<project-host>` routes are served by the
+DDEV router on the workspace machine. They are not automatically public Coder app
+URLs. The Rust service also retains a direct workspace-loopback port for private
+tunnelling. On your laptop:
 
 ```bash
 coder port-forward WORKSPACE --tcp 127.0.0.1:18090:18090

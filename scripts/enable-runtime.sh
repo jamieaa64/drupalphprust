@@ -25,10 +25,25 @@ fi
 [[ "$port" =~ ^[0-9]+$ ]] && (( port >= 1024 && port <= 65535 )) || { echo 'Invalid PHPR_HTTP_PORT' >&2; exit 2; }
 python3 - "$profile" "$port" <<'PY'
 from pathlib import Path
-import sys
+import sys,json,re,subprocess
+from urllib.parse import urlsplit, urlunsplit
+# DDEV owns the base hostname and router port; never guess from the folder name.
+result=subprocess.run(['ddev','describe','-j'],check=True,capture_output=True,text=True)
+records=[json.loads(line) for line in result.stdout.splitlines() if line.strip().startswith('{')]
+info=next(record['raw'] for record in reversed(records) if isinstance(record.get('raw'),dict) and 'primary_url' in record['raw'])
+url=urlsplit(info['primary_url'])
+host=url.hostname
+if not host or not re.fullmatch(r'[A-Za-z0-9.-]+',host):
+    raise SystemExit('Cannot determine a safe DDEV hostname')
+php_host='php.'+host
+rust_host='rust.'+host
+port_suffix=(':'+str(url.port)) if url.port else ''
+urls='Standard PHP (Zend): '+urlunsplit((url.scheme,php_host+port_suffix,'/','',''))+'\nPHP RUST: '+urlunsplit((url.scheme,rust_host+port_suffix,'/','',''))+'\n'
 source=Path('runtime/docker-compose.phpr.yaml').read_text()
-Path('.ddev/docker-compose.phpr.yaml').write_text('# Managed by drupalphprust\n'+source.replace('drupalphprust:dev-release','drupalphprust:'+sys.argv[1]).replace('${PHPR_HTTP_PORT:-18090}',sys.argv[2]))
+Path('.ddev/docker-compose.phpr.yaml').write_text('# Managed by drupalphprust\n'+source.replace('drupalphprust:dev-release','drupalphprust:'+sys.argv[1]).replace('${PHPR_HTTP_PORT:-18090}',sys.argv[2]).replace('__PHP_HOST__',php_host).replace('__PHPR_HOST__',rust_host))
+Path('.ddev/.runtime-urls').write_text(urls)
 PY
 ddev restart
 printf '%s\n' "drupalphprust:$profile" > .ddev/.runtime-installed-image
-printf '%s\n' "PHP Rust configured: http://127.0.0.1:$port/ (port persisted in the managed service)." 'This does not certify Drupal compatibility. Zend remains the normal DDEV URL.'
+cat .ddev/.runtime-urls
+printf '%s\n' "PHP RUST direct/tunnel fallback: http://127.0.0.1:$port/" 'Both URLs use the same Drupal files and database. Named routes do not certify runtime compatibility.'

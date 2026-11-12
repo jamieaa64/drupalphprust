@@ -60,6 +60,22 @@ The default command reads `main`; the installer configuration and tracker change
 are now published there. A branch-specific `--ref` is only for pre-release testing,
 not the normal setup command.
 
+## Two clearly named runtime URLs
+
+For a project whose base hostname is `example.ddev.site`, runtime setup creates:
+
+- **Standard PHP (Zend):** `https://php.example.ddev.site/`
+- **PHP RUST:** `https://rust.example.ddev.site/`
+
+The installer prints your actual URLs and saves them in `.ddev/.runtime-urls`.
+The original DDEV URL still uses standard PHP. The two services share Drupal files
+and the database; a working standard-PHP page does not prove PHP Rust works.
+Coder browser access still needs its workspace routes or a private tunnel.
+
+For an existing installed checkout, bring in the committed changes, then run
+`bash scripts/enable-runtime.sh dev-release` to regenerate routing and restart
+DDEV. This requires the previously built runtime image; it does not reinstall Drupal.
+
 ## Open the tracker
 
 GitHub displays `tracker.html` as source rather than running the page. In your

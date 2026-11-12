@@ -9,12 +9,12 @@ Local/default and optional Coder configurations are prepared; a complete clean i
 ## Work
 
 - Finish the canonical repository-based install and fix failures in the owning component.
-- Preserve local defaults, settings and secret-free portable configuration.
+- Provide labelled php. and rust. hostnames and print exact URLs; preserve settings and secret-free portable configuration.
 
 ## Test / finish
 
 - Install in a fresh sibling folder; let the user handle interactive authentication.
-- Verify DDEV restart and both runtimes; record exact versions and remaining limitations.
+- Verify named routes reach distinct services, TLS, Drupal trusted hosts and restart persistence; record remaining limitations.
 
 ## Upstream
 

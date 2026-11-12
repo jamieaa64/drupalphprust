@@ -84,7 +84,10 @@ class RuntimePortTests(unittest.TestCase):
             (root/'.ddev/config.yaml').write_text('name: fixture\n')
             (root/'web/.ht.router.php').write_text('<?php')
             for name in ['docker','ddev']:
-                f=root/'bin'/name; f.write_text('#!/bin/sh\nexit 0\n'); f.chmod(0o755)
+                f=root/'bin'/name
+                body='#!/bin/sh\nexit 0\n'
+                if name=='ddev': body='#!/bin/sh\nif [ "$1" = describe ]; then echo \'{"raw":{"primary_url":"https://fixture.ddev.site"}}\'; fi\n'
+                f.write_text(body); f.chmod(0o755)
             env=dict(os.environ,PATH=str(root/'bin')+os.pathsep+os.environ['PATH'])
             env.pop('PHPR_HTTP_PORT',None)
             command=['bash',str(root/'scripts/enable-runtime.sh')]
@@ -92,6 +95,11 @@ class RuntimePortTests(unittest.TestCase):
             subprocess.run(command,env=env,check=True,capture_output=True)
             service=root/'.ddev/docker-compose.phpr.yaml'
             self.assertIn('127.0.0.1:18091:8090',service.read_text())
+            self.assertIn('VIRTUAL_HOST: "${DDEV_HOSTNAME},php.fixture.ddev.site"',service.read_text())
+            self.assertIn('VIRTUAL_HOST: "rust.fixture.ddev.site"',service.read_text())
+            self.assertIn('HTTPS_EXPOSE: "443:8090"',service.read_text())
+            self.assertEqual((root/'.ddev/.runtime-urls').read_text(),
+                'Standard PHP (Zend): https://php.fixture.ddev.site/\nPHP RUST: https://rust.fixture.ddev.site/\n')
             service.write_text('# user owned\n')
             result=subprocess.run(command,env=env,capture_output=True)
             self.assertNotEqual(result.returncode,0)
