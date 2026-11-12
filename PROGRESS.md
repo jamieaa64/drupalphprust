@@ -8,9 +8,10 @@ Zend/Rust probes pass, including SplFileInfo timestamps. **Next blocker:** Fiber
 suspension inside a Generator during page rendering. Minimal reproduction saved.
 
 - [x] Create independent source checkout outside the migration folder.
-- [x] Add local/Coder-freeform launcher; seven focused tests pass.
+- [x] Document direct One Line Installer repo/ref setup for local and Coder freeform.
+- [x] Optional developer launcher/service checks: seven tests pass.
 - [x] Check reachable Git history and tracked source for common secret/private-file patterns.
-- [ ] Complete local installer smoke: currently stopped at DDEV hostname administrator approval.
+- [ ] Complete local installer smoke: awaiting user-run interactive DDEV setup.
 - [x] Preserve runtime patches and focused regressions; verify all 31 patches reconstruct the candidate.
 - [x] Document current blocker, known limitations and how another agent resumes.
 - [x] Prepare One Line Installer config and DDEV runtime service.

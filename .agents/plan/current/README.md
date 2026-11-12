@@ -15,7 +15,9 @@ check, not the project's identity or the only goal.
 ## Current provisioning work
 
 Create the standalone checkout outside the migration directory; provide a local
-or Coder-freeform launcher using the same One Line Installer config. No Coder/API
+or Coder-freeform setup using the One Line Installer directly with this repo/ref.
+The user clarified that the native repo-config command is the required interface;
+the Python launcher is only an optional developer helper. No Coder/API
 credentials in source. Validate clean source export, persistent ports, explicit
 hook success and a local smoke install. Remote routing is a separate acceptance
 step and needs a user-selected workspace; no new template is required.

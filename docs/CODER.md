@@ -1,8 +1,8 @@
 # Optional Coder freeform host
 
 Coder supplies a machine with Docker and DDEV. The source and local installation
-have no Coder dependency. Both targets use the same One Line Installer config;
-`--target coder` is our launcher argument, not a change to the upstream CLI.
+have no Coder dependency. Both hosts use the same One Line Installer config
+fetched directly from this repository and branch.
 No API keys, workspace tokens, Terraform state or new Coder template are needed
 in this repository. Coder authentication stays in the user's local CLI store.
 
@@ -20,16 +20,18 @@ coder login YOUR_CODER_URL
 coder ssh WORKSPACE
 ```
 
-Inside that workspace:
+Inside that workspace, from a parent directory (not an existing DDEV project):
 
 ```bash
-docker info
-ddev version
-git clone https://github.com/jamieaa64/drupalphprust.git
-cd drupalphprust
-# Until merged, checkout the published working branch here.
-python3 scripts/install.py --target coder --destination ../drupalphprust-coder --yes
+bash <(curl -fsSL https://aibp.drupalstarforge.ai/install.sh) \
+  https://github.com/jamieaa64/drupalphprust \
+  --ref codex/portable-installer \
+  --config drupalphprust \
+  --name drupalphprust-coder
 ```
+
+No pre-clone or custom launcher is needed. Push the branch first. The installer
+reads its `.drupalaibp/` config and creates the project using DDEV.
 
 The repo is public, so cloning needs no GitHub API key. A private fork can use
 user-managed Git authentication; never add credentials to the remote URL.
@@ -43,7 +45,7 @@ coder port-forward WORKSPACE --tcp 127.0.0.1:18090:18090
 ```
 
 Keep the tunnel running and visit `http://127.0.0.1:18090/`. Choose a different
-local port if occupied; choose `--runtime-port` when installing if the remote
+local port if occupied; prefix the installer with `PHPR_HTTP_PORT=18091` if the remote
 port is occupied. This route needs no template modification or public exposure.
 
 For the normal Zend site run `ddev describe` in the installed project and forward
@@ -68,7 +70,7 @@ git switch YOUR_BRANCH
 git pull --ff-only
 ```
 
-For a fresh reproducible site run the launcher with a new destination/name. For
+For a fresh reproducible site run the One Line Installer with a new `--name`. For
 an existing disposable installed site, first ensure its tracked working tree is
 clean, then fetch/switch/pull there and rebuild:
 
@@ -79,7 +81,7 @@ bash scripts/enable-runtime.sh dev-release
 
 Installer-managed edits to AGENTS.md or other files may make the installed tree
 dirty. Inspect them; never use reset/clean to force an update. Do not rerun the
-fresh-site launcher into an existing destination. Database/content changes and
+fresh-site installer into an existing destination. Database/content changes and
 Composer lock differences require a separate deliberate sync/restore plan.
 
 ## Acceptance and boundaries

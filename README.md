@@ -26,34 +26,30 @@ There is no proven speed advantage and no claim that untouched Drupal CMS works.
 
 ## Local or Coder setup
 
-Clone this repository into its own source folder. Install Docker, DDEV, Python 3
-and the [One Line Installer](https://project.pages.drupalcode.org/one_line_installer/guides/getting-started/).
-From the source checkout, create a **separate** new site:
+Use the [One Line Installer](https://project.pages.drupalcode.org/one_line_installer/guides/getting-started/)
+directly, passing this repository and a **published** branch. Run in your terminal
+from the parent directory where the new project should be created:
 
 ```bash
-python3 scripts/install.py --target local --destination ../drupalphprust-local --yes
+bash <(curl -fsSL https://aibp.drupalstarforge.ai/install.sh) \
+  https://github.com/jamieaa64/drupalphprust \
+  --ref codex/portable-installer \
+  --config drupalphprust \
+  --name drupalphprust-site
 ```
 
-Inside a Coder DDEV **freeform** workspace, use the same checkout and command:
+The installer reads `.drupalaibp/drupalphprust.json` from that branch, creates
+`drupalphprust-site`, installs Drupal CMS using DDEV, and runs our late hook to
+build and enable PHP Rust. Follow its prompts, including any DDEV administrator
+password request. No Python launcher or pre-clone is required.
 
-```bash
-python3 scripts/install.py --target coder --destination ../drupalphprust-coder --yes
-```
+Use the same command inside a Coder DDEV **freeform** workspace, choosing a new
+project name. Coder supplies the host; no new template, API key or Coder dependency
+is needed for the local build. See [usage](docs/USAGE.md) and [Coder workflow](docs/CODER.md).
 
-`--target` belongs to our launcher, not the upstream installer. Both targets use
-the same Drupal config and Docker build. Local mode does not invoke or require
-Coder. Coder mode prints private tunnel instructions; it does not provision a
-workspace, authenticate, create public routes or require a new template.
-
-The launcher uses a temporary clean Git clone of committed source. Ignored files,
-local API keys, databases and runtime builds are never copied from your checkout.
-Commit changes before installing; source and installed sites remain separate.
-Use `--runtime-port 18091` for a second site on the same Docker host; the chosen
-port persists across DDEV restarts. `--dry-run` checks the plan without installing.
-See [usage](docs/USAGE.md) and [Coder workflow](docs/CODER.md).
-
-No API keys are required for setup. The runtime remains experimental: completing
-installation is not proof of Drupal end-to-end compatibility.
+`codex/portable-installer` must be pushed before this command can fetch it. Once
+merged into main, omit `--ref` or select a released ref. The runtime remains
+experimental: installation is not proof of Drupal end-to-end compatibility.
 
 ## Portable runtime work
 

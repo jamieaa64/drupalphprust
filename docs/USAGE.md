@@ -24,56 +24,62 @@ The source checkout needs no Coder client, credentials, API keys or sibling
 repositories. The installed site contains generated Drupal files and its database;
 those are not the portable source. Do not move databases through Git.
 
-Install the CLI using its [official guide](https://project.pages.drupalcode.org/one_line_installer/guides/getting-started/).
-From the source checkout:
+## Run the One Line Installer directly
+
+Use the [official one-liner](https://project.pages.drupalcode.org/one_line_installer/guides/getting-started/)
+from the **parent directory**, not the source checkout or an existing DDEV site:
 
 ```bash
-python3 scripts/install.py --target local --destination ../drupalphprust-local --yes
+bash <(curl -fsSL https://aibp.drupalstarforge.ai/install.sh) \
+  https://github.com/jamieaa64/drupalphprust \
+  --ref codex/portable-installer \
+  --config drupalphprust \
+  --name drupalphprust-site
 ```
 
-`--yes` maps to the installer's `--yolo`; omit it for interactive setup. If you have
-a downloaded installer script instead of a global command, add
-`--installer /absolute/path/to/drupalaibp`. This never authenticates or pushes Git.
-
-The wrapper validates the target/path/port, checks tracked source and reachable
-history for common secrets, requires committed changes, then creates a temporary
-clean Git clone. It invokes the One Line Installer with our existing
-`drupalphprust` config. It never copies ignored/untracked files from source.
-The installed Git remote is the public repository URL, not your local path.
-
-The source config uses `profile: template` and `site_template: drupal_cms_starter`.
-The late host hook builds the runtime and enables the DDEV sidecar. Since the
-installer can warn and continue after a failed hook, the wrapper additionally
-checks `.ddev/.runtime-ready` and runs `phpr --version` in the service.
-
-Verify the installed site:
+If the CLI is already installed, the equivalent is:
 
 ```bash
-cd ../drupalphprust-local
+drupalaibp https://github.com/jamieaa64/drupalphprust --ref codex/portable-installer --config drupalphprust --name drupalphprust-site
+```
+
+The selected branch must be published. The installer fetches its
+`.drupalaibp/drupalphprust.json` and scripts; you do not need to clone this repo
+first or use `scripts/install.py`. That script is an optional developer helper
+for committed local-source experiments, not the project's installation interface.
+
+The config uses `profile: template` and `site_template: drupal_cms_starter`.
+The late host hook builds the runtime and enables the DDEV sidecar. Use a new
+`--name` for each fresh attempt; the previous `drupalphprust-local` folder is a
+partial installation. Run interactively so you can answer DDEV's prompts yourself.
+
+For another runtime port, prefix the command with `PHPR_HTTP_PORT=18091`.
+The port is saved in the managed service and survives restarts/rebuilds.
+Both local and Coder freeform hosts use the same config. Optional environment
+variable `DRUPALPHPRUST_TARGET=coder` records host context; it does not provision
+Coder or require credentials. There is no upstream `--target` flag.
+
+The installer can warn and continue after a failed hook, so verify explicitly:
+
+```bash
+cd drupalphprust-site
+test -s .ddev/.runtime-ready
 ddev describe
 ddev exec -s phpr phpr --version
 ddev logs -s phpr
 curl --fail http://127.0.0.1:18090/user/login -o /tmp/phpr-login.html
 ```
 
-Inspect the response content too. A successful HTTP response can contain PHP
-errors. The installer manages initial disposable site credentials; set your own
-before exposing anything. Never put passwords, cookies or database dumps in Git.
-
-Direct upstream installer use is still supported for **published** commits:
-
-```bash
-drupalaibp https://github.com/jamieaa64/drupalphprust --config drupalphprust --name drupalphprust-local
-```
-
-For a published branch add `--ref BRANCH`. For unpublished development use our
-wrapper: raw upstream local-path installation copies the whole directory,
-including ignored files, so do not point it at a dirty working checkout.
+Inspect response content too. The installer manages the disposable site's initial
+credentials; never put passwords, cookies or database dumps in Git. For local-path
+installer sources use a clean checkout: upstream copies the whole source directory,
+including ignored files. The published Git-source command avoids that problem.
 
 ## Host prerequisite failures
 
 If DDEV reports an unresolved `NAME.ddev.site` hostname and asks for administrator
-privileges, run the exact `ddev-hostname` command it displays in your own terminal.
+privileges, enter your password directly in your interactive terminal when DDEV
+requests it. A separate hostname command is not the normal installation workflow.
 Do not give an agent your password. A failed fresh install may leave a partial
 folder: inspect and preserve it before choosing a new destination or retrying.
 The launcher never deletes or resets an existing directory to force a retry.
