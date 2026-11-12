@@ -11,12 +11,14 @@ target=.ddev/docker-compose.phpr.yaml
 if [[ -f "$target" ]] && ! grep -q '^# Managed by drupalphprust$' "$target"; then
   echo "Refusing to overwrite unowned $target" >&2; exit 1
 fi
-python3 - "$profile" <<'PY'
+port="${PHPR_HTTP_PORT:-18090}"
+[[ "$port" =~ ^[0-9]+$ ]] && (( port >= 1024 && port <= 65535 )) || { echo 'Invalid PHPR_HTTP_PORT' >&2; exit 2; }
+python3 - "$profile" "$port" <<'PY'
 from pathlib import Path
 import sys
 source=Path('runtime/docker-compose.phpr.yaml').read_text()
-Path('.ddev/docker-compose.phpr.yaml').write_text('# Managed by drupalphprust\n'+source.replace('drupalphprust:dev-release','drupalphprust:'+sys.argv[1]))
+Path('.ddev/docker-compose.phpr.yaml').write_text('# Managed by drupalphprust\n'+source.replace('drupalphprust:dev-release','drupalphprust:'+sys.argv[1]).replace('${PHPR_HTTP_PORT:-18090}',sys.argv[2]))
 PY
 ddev restart
 printf '%s\n' "drupalphprust:$profile" > .ddev/.runtime-installed-image
-printf '%s\n' 'PHP Rust configured. Check http://127.0.0.1:18090/ (or PHPR_HTTP_PORT).' 'This does not certify Drupal compatibility. Zend remains the normal DDEV URL.'
+printf '%s\n' "PHP Rust configured: http://127.0.0.1:$port/ (port persisted in the managed service)." 'This does not certify Drupal compatibility. Zend remains the normal DDEV URL.'

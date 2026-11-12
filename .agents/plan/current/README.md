@@ -12,6 +12,14 @@ for another agent to continue without chat history or the old migration workspac
 The browser journey (homepage → login → create → edit → view) is an acceptance
 check, not the project's identity or the only goal.
 
+## Current provisioning work
+
+Create the standalone checkout outside the migration directory; provide a local
+or Coder-freeform launcher using the same One Line Installer config. No Coder/API
+credentials in source. Validate clean source export, persistent ports, explicit
+hook success and a local smoke install. Remote routing is a separate acceptance
+step and needs a user-selected workspace; no new template is required.
+
 ## Work sequence
 
 | Order | Work | Status / exit condition |

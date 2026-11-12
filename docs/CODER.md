@@ -1,51 +1,90 @@
-# Coder and DDEV freeform
+# Optional Coder freeform host
 
-Coder provides the machine, Docker, persistent project directory and authenticated
-access. DDEV and the One Line Installer provide Drupal. There is no separate
-migration template dependency and no duplicated Coder-only Drupal installer.
+Coder supplies a machine with Docker and DDEV. The source and local installation
+have no Coder dependency. Both targets use the same One Line Installer config;
+`--target coder` is our launcher argument, not a change to the upstream CLI.
+No API keys, workspace tokens, Terraform state or new Coder template are needed
+in this repository. Coder authentication stays in the user's local CLI store.
 
-## Intended contract
+## Create or select a workspace
 
-1. Start a DDEV freeform workspace (or a template with the same Docker/DDEV setup).
-2. Check `docker info`, `ddev version`, disk space and project-directory ownership.
-3. Run the exact One Line Installer source/config command in USAGE.md.
-4. Ensure the DDEV project name is registered with the template if it requires a
-   predefined project-name list. On templates providing it, run `ddev coder-setup`
-   and follow that template's routing instructions; do not assume the command is
-   installed on every DDEV host.
-5. Verify normal DDEV/Zend access, then PHP Rust on workspace loopback port 18090.
-6. Expose/forward that port using a **private authenticated** Coder app/port route
-   or a local tunnel. Workspace loopback is not your laptop's loopback.
+Use an existing **DDEV freeform** workspace or create a fresh one in your Coder
+UI. It must provide Docker access, DDEV, Git, Python 3, Bash, the installer and
+enough disk/CPU for a Rust build. Workspace creation and provider login are
+separate from project installation. No workspace name or server is hardcoded.
 
-One Line Installer working on the freeform host establishes the provisioning
-path. It does not by itself prove external URLs, TLS, routing, restart persistence,
-port conflicts or database/file mounts. Those get their own smoke checks.
+If authentication is needed, run these yourself on your laptop:
 
-## Template acceptance (not yet run for this extraction)
+```bash
+coder login YOUR_CODER_URL
+coder ssh WORKSPACE
+```
 
-- Docker usable by workspace user; DDEV can create and restart its network/services.
-- Site files and database survive workspace stop/start according to template policy.
-- Project naming and DDEV route setup work with the generated config.
-- The `phpr` service sees the same Drupal files and can connect to DDEV's database.
-- Loopback Rust route returns the expected rendered page, with no PHP error content.
-- Private external route can reach it; verify proxy host handling/login cookies.
-- A second project uses a distinct name and Rust port; no fixed public/global route.
-- `ddev stop/start` restarts both engines without launching the installer again.
+Inside that workspace:
 
-Do not modify an unrelated workspace or publish a port merely to make a check pass.
-If a Coder template change is needed, prepare a separate template contribution
-that invokes this repository/config. No template source was copied into this repo.
+```bash
+docker info
+ddev version
+git clone https://github.com/jamieaa64/drupalphprust.git
+cd drupalphprust
+# Until merged, checkout the published working branch here.
+python3 scripts/install.py --target coder --destination ../drupalphprust-coder --yes
+```
 
-## Earlier experimental environment
+The repo is public, so cloning needs no GitHub API key. A private fork can use
+user-managed Git authentication; never add credentials to the remote URL.
 
-Historical workspace: `php-rust-migration` on staging Coder; project:
-`/home/coder/drupal-oob`; lab tools: `/home/coder/php-rust-lab`.
-Its name predates this standalone project. The PHP Rust server there was started
-as an independently labelled Docker container on port 18090, **not** through the
-new DDEV sidecar. Existing browser receipts therefore do not validate this sidecar.
-Do not start both on the same port. The original migration-related sites were
-not the test target and are not needed to reproduce this repository.
+## Access the site privately
 
-The user may run `coder login https://staging-coder.ddev.com` when authentication
-is needed. Agents may use the already-authorized local CLI/SSH for this experiment;
-never collect the user's password or perform their authentication for them.
+The Rust service binds only to workspace loopback. On your laptop:
+
+```bash
+coder port-forward WORKSPACE --tcp 127.0.0.1:18090:18090
+```
+
+Keep the tunnel running and visit `http://127.0.0.1:18090/`. Choose a different
+local port if occupied; choose `--runtime-port` when installing if the remote
+port is occupied. This route needs no template modification or public exposure.
+
+For the normal Zend site run `ddev describe` in the installed project and forward
+its direct HTTP port in the same way. If your existing template supplies named
+DDEV routes, follow its instructions (`ddev coder-setup` may be available). This
+is optional and is not invoked by our portable installer.
+
+## Work locally, update remotely
+
+Use Git for source changes. The user performs pushes/authentication:
+
+```bash
+# Local source checkout, after reviewing and committing changes:
+git push -u origin HEAD
+```
+
+Then inside the Coder workspace's source checkout:
+
+```bash
+git fetch origin
+git switch YOUR_BRANCH
+git pull --ff-only
+```
+
+For a fresh reproducible site run the launcher with a new destination/name. For
+an existing disposable installed site, first ensure its tracked working tree is
+clean, then fetch/switch/pull there and rebuild:
+
+```bash
+bash scripts/build-runtime.sh dev-release
+bash scripts/enable-runtime.sh dev-release
+```
+
+Installer-managed edits to AGENTS.md or other files may make the installed tree
+dirty. Inspect them; never use reset/clean to force an update. Do not rerun the
+fresh-site launcher into an existing destination. Database/content changes and
+Composer lock differences require a separate deliberate sync/restore plan.
+
+## Acceptance and boundaries
+
+Check both services, login response content, restart persistence and private
+access. A local install does not prove Coder routing or full Drupal compatibility.
+The earlier experiment used a standalone server container on an old workspace;
+those receipts do not certify this DDEV service or this freeform setup.

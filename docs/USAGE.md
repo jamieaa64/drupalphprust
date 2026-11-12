@@ -11,52 +11,64 @@ Host requirements: working DDEV/Docker, Git, Bash and Python 3; One Line Install
 host because Docker builds it. Allow several minutes and enough disk/CPU for a
 Rust build. Coder freeform supplies the host; see CODER.md.
 
-## New site through the One Line Installer
+## Separate source and installed projects
+
+Keep a source checkout and disposable sites as siblings, for example:
+
+```text
+~/code/ai/drupalphprust/          # Git source, patches, plans, docs
+~/code/ai/drupalphprust-local/    # Generated Drupal/DDEV site
+```
+
+The source checkout needs no Coder client, credentials, API keys or sibling
+repositories. The installed site contains generated Drupal files and its database;
+those are not the portable source. Do not move databases through Git.
 
 Install the CLI using its [official guide](https://project.pages.drupalcode.org/one_line_installer/guides/getting-started/).
-Run from the **parent directory** where a new disposable project should be created:
+From the source checkout:
 
 ```bash
-drupalaibp https://github.com/jamieaa64/drupalphprust \
-  --config drupalphprust --name drupalphprust
-cd drupalphprust
+python3 scripts/install.py --target local --destination ../drupalphprust-local --yes
 ```
 
-Before a prepared branch is merged into main, add `--ref <published-branch>`.
-Do not use a branch/ref that has not been pushed. Authentication, when needed,
-is performed by the user in their terminal.
+`--yes` maps to the installer's `--yolo`; omit it for interactive setup. If you have
+a downloaded installer script instead of a global command, add
+`--installer /absolute/path/to/drupalaibp`. This never authenticates or pushes Git.
 
-For local-source development before publishing, use a clean source checkout and
-another destination parent directory (not a child of the source):
+The wrapper validates the target/path/port, checks tracked source and reachable
+history for common secrets, requires committed changes, then creates a temporary
+clean Git clone. It invokes the One Line Installer with our existing
+`drupalphprust` config. It never copies ignored/untracked files from source.
+The installed Git remote is the public repository URL, not your local path.
 
-```bash
-# From the destination parent; replace this example path with your source checkout.
-drupalaibp /absolute/path/to/drupalphprust \
-  --config drupalphprust --name drupalphprust-test
-cd drupalphprust-test
-```
+The source config uses `profile: template` and `site_template: drupal_cms_starter`.
+The late host hook builds the runtime and enables the DDEV sidecar. Since the
+installer can warn and continue after a failed hook, the wrapper additionally
+checks `.ddev/.runtime-ready` and runs `phpr --version` in the service.
 
-The inspected installer source overlays the whole source directory into the new
-project after Composer scaffolding. Use a clean checkout: a local source with
-`.work`, vendor, logs or private artifacts could copy those too. The config uses
-`profile: template` with `site_template: drupal_cms_starter`; it does not use the
-old migration menu or canvas-storybook-ai configs.
-
-The late host hook builds `drupalphprust:dev-release`, installs the service and
-restarts DDEV. In the inspected installer version, hook failures are warnings and
-the pipeline continues. **Installer exit 0 is insufficient.** Check:
+Verify the installed site:
 
 ```bash
-test -s .ddev/.runtime-ready
+cd ../drupalphprust-local
 ddev describe
 ddev exec -s phpr phpr --version
 ddev logs -s phpr
 curl --fail http://127.0.0.1:18090/user/login -o /tmp/phpr-login.html
 ```
 
-Inspect page content/browser results; a curl success can still contain PHP errors.
-The installer manages its initial account. Keep the disposable site private and
-set your own credentials before exposing it. Do not put them in receipts or Git.
+Inspect the response content too. A successful HTTP response can contain PHP
+errors. The installer manages initial disposable site credentials; set your own
+before exposing anything. Never put passwords, cookies or database dumps in Git.
+
+Direct upstream installer use is still supported for **published** commits:
+
+```bash
+drupalaibp https://github.com/jamieaa64/drupalphprust --config drupalphprust --name drupalphprust-local
+```
+
+For a published branch add `--ref BRANCH`. For unpublished development use our
+wrapper: raw upstream local-path installation copies the whole directory,
+including ignored files, so do not point it at a dirty working checkout.
 
 ## Rebuild or recover a failed hook
 
@@ -86,10 +98,10 @@ ddev stop
 ```
 
 The regular DDEV URL uses Zend PHP. PHP Rust is `http://127.0.0.1:18090/` on the
-machine running Docker, not necessarily your laptop. For another port, export
-`PHPR_HTTP_PORT=18091` **before every DDEV start/restart** for that project. Set it
-in the appropriate DDEV compose environment file only after verifying your DDEV
-version's interpolation behavior. Different projects must use different ports.
+machine running Docker, not necessarily your laptop. Choose another port with launcher `--runtime-port 18091`. It is written into the
+managed service, so ordinary DDEV starts need no exported variables. To change it
+on an existing installed site, run `PHPR_HTTP_PORT=18091 bash scripts/enable-runtime.sh dev-release`.
+Different projects on the same Docker host must use different ports.
 Use separate browser contexts for control/candidate to avoid shared-host cookies.
 
 To disable the experiment, inspect and remove only the managed

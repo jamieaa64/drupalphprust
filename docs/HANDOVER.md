@@ -3,6 +3,15 @@
 Read AGENTS.md and `.agents/plan/current/README.md` first. This document is the
 handover for the standalone repository, not a request to resume migration work.
 
+## Portable project entry
+
+The active source checkout was recreated outside the migration folder at
+`/Users/jamesabrahams/code/ai/drupalphprust` on `codex/portable-installer`.
+This path is a local convenience, not a runtime requirement. Use
+`scripts/install.py --target local|coder --destination NEW_SIBLING_FOLDER`.
+Source is shared through Git; installed databases, credentials and build outputs
+stay local to each host. See USAGE.md and CODER.md before provisioning.
+
 ## Current runtime status
 
 The Views `Page.php` lowering blocker is fixed by `static-property-reference.patch`.

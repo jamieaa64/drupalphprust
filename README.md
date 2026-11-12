@@ -8,7 +8,7 @@ This is an experimental runtime compatibility project. It does not provide a
 Drupal migration agent, migration dashboard, OAuth integration or MCP tooling.
 
 **Current status:** the earlier disposable site renders the homepage and preserves
-login sessions. Page creation is blocked by a Views compiler/lowering gap. The
+login sessions. Page rendering is blocked by Fiber suspension inside a Generator. The
 new installer hook and DDEV service are prepared but not yet exercised end-to-end.
 There is no proven speed advantage and no claim that untouched Drupal CMS works.
 
@@ -24,26 +24,36 @@ There is no proven speed advantage and no claim that untouched Drupal CMS works.
 - [Discrete upstream submissions](docs/UPSTREAM.md)
 - [GitHub handoff](docs/GITHUB.md)
 
-## Intended setup
+## Local or Coder setup
 
-After this repository's prepared branch is pushed, from a parent directory on a
-DDEV-capable machine (including a Coder freeform workspace):
+Clone this repository into its own source folder. Install Docker, DDEV, Python 3
+and the [One Line Installer](https://project.pages.drupalcode.org/one_line_installer/guides/getting-started/).
+From the source checkout, create a **separate** new site:
 
 ```bash
-drupalaibp https://github.com/jamieaa64/drupalphprust \
-  --config drupalphprust --name drupalphprust
+python3 scripts/install.py --target local --destination ../drupalphprust-local --yes
 ```
 
-This is the **candidate install command**, not an already-validated release.
-Install `drupalaibp` using its [official instructions](https://project.pages.drupalcode.org/one_line_installer/guides/getting-started/).
-For a branch under review add `--ref codex/standalone-ddev-project`. Do not point
-at an existing client site. See [usage](docs/USAGE.md) for local-source setup,
-manual recovery after hook failure and credentials considerations.
+Inside a Coder DDEV **freeform** workspace, use the same checkout and command:
 
-The installer creates a DDEV Drupal CMS Starter site. Its late host hook builds
-our pinned PHP Rust candidate and enables a separate DDEV `phpr` service.
-The normal DDEV URL continues to run standard PHP; PHP Rust uses a loopback port.
-Composer and Drush continue using standard PHP during this experiment.
+```bash
+python3 scripts/install.py --target coder --destination ../drupalphprust-coder --yes
+```
+
+`--target` belongs to our launcher, not the upstream installer. Both targets use
+the same Drupal config and Docker build. Local mode does not invoke or require
+Coder. Coder mode prints private tunnel instructions; it does not provision a
+workspace, authenticate, create public routes or require a new template.
+
+The launcher uses a temporary clean Git clone of committed source. Ignored files,
+local API keys, databases and runtime builds are never copied from your checkout.
+Commit changes before installing; source and installed sites remain separate.
+Use `--runtime-port 18091` for a second site on the same Docker host; the chosen
+port persists across DDEV restarts. `--dry-run` checks the plan without installing.
+See [usage](docs/USAGE.md) and [Coder workflow](docs/CODER.md).
+
+No API keys are required for setup. The runtime remains experimental: completing
+installation is not proof of Drupal end-to-end compatibility.
 
 ## Portable runtime work
 

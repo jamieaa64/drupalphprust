@@ -34,3 +34,14 @@
 .ddev/.dbimageBuild/
 .ddev/.ddev-docker-compose*.yaml
 /setup-runtime.sh
+
+# Host authentication and private exports never belong in this source repository.
+.coder/
+.ssh/
+.aws/
+*.sql
+*.sql.gz
+*.pem
+*.key
+*.p12
+.ddev/.runtime-target

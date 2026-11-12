@@ -4,7 +4,10 @@ set -euo pipefail
 [[ -f runtime/Dockerfile && -f scripts/enable-runtime.sh && -f .ddev/config.yaml ]] || {
   echo 'Expected the drupalphprust source overlay in the installed project.' >&2; exit 1;
 }
+target="${DRUPALPHPRUST_TARGET:-local}"
+case "$target" in local|coder) ;; *) echo 'Target must be local or coder' >&2; exit 2;; esac
 rm -f .ddev/.runtime-ready
 bash scripts/build-runtime.sh dev-release
 bash scripts/enable-runtime.sh dev-release
 printf '%s\n' 'Runtime setup completed; browser compatibility remains experimental.' > .ddev/.runtime-ready
+printf '%s\n' "$target" > .ddev/.runtime-target
