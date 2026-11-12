@@ -52,3 +52,8 @@ Normal regeneration updates Markdown in an already managed installed page too.
 `--serve` retains the live Markdown view; use `--port 8766` if 8765 is occupied.
 Coder private routes/tunnels remain necessary; local URLs are not assumed to be
 accessible outside the workspace.
+
+The prominent introduction is authored in `docs/TRY-IT.md`; update that document
+when known blockers or contributor entry steps change. Hostname setup has its own
+status, independent of service health and runtime acceptance. Failed registration
+leaves a usable tracker and explicit retry steps.

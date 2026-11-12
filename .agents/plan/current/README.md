@@ -1,6 +1,8 @@
 # Overall plan
 
-Make the agreed out-of-box Drupal CMS baseline run correctly on PHP Rust,
+Provide a reproducible environment where people can try Drupal CMS on PHP Rust,
+see documented failures and take over tasks. Full runtime parity is not required
+to share the environment. Continue making the out-of-box CMS baseline work,
 install it through DDEV / One Line Installer, then explore its capabilities, limitations and tradeoffs against Zend.
 Coder is optional. Migration tooling, OAuth and MCP are excluded.
 

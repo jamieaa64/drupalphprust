@@ -19,6 +19,7 @@ fi
 if [[ -z "$target" && -f .ddev/.runtime-target ]]; then target="$(cat .ddev/.runtime-target)"; fi
 target="${target:-local}"
 case "$target" in local|coder) ;; *) echo 'Target must be local or coder' >&2; exit 2;; esac
+printf '%s\n' "$target" > .ddev/.runtime-target
 rm -f .ddev/.runtime-ready
 bash scripts/build-runtime.sh dev-release
 bash scripts/enable-runtime.sh dev-release

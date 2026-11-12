@@ -14,6 +14,18 @@ is an optional developer helper, not the supported user-facing setup command.
 Source is shared through Git; installed databases, credentials and build outputs
 stay local to each host. See USAGE.md and CODER.md before provisioning.
 
+## Fresh installation and contributor entry
+
+The installed tracker opens before Drupal exploration and prominently renders
+[Try it](TRY-IT.md): known failures, ownership and recovery. The fresh CMS homepage
+currently fails on PHP Rust with missing XMLWriter, owned by active task 16.
+The Fiber/Generator result below comes from the earlier reduced-feature site.
+Full parity is not required to share this experimental environment.
+
+Automatic local hostname registration now runs in the OLI pre-launch hook using
+actual runtime URLs and DDEV; passwords remain in the user terminal. Coder keeps
+private routes/tunnels. No Rust language fix was made in this installer change.
+
 ## Current runtime status
 
 The Views `Page.php` lowering blocker is fixed by `static-property-reference.patch`.

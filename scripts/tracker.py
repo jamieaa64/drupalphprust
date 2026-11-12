@@ -45,6 +45,11 @@ def installation(root=ROOT):
         info['checked']=saved.get('checked','Not checked')
         info['services']={k:v for k,v in saved.get('services',{}).items()
                           if k in ('web','phpr') and v in ('running','stopped','unknown')}
+    network=root/'.ddev/.runtime-network.json'
+    info['network']='not-checked'
+    if network.is_file():
+        state=json.loads(network.read_text()).get('status')
+        if state in ('ready','failed','pending','private-routing-required'): info['network']=state
     return info
 
 def refresh_status():
@@ -89,8 +94,9 @@ def main():
     if args.message:
         info=installation(); status=json.loads((ROOT/'.ddev/.tracker-status.json').read_text())
         print('Project tracker: '+status['tracker'])
-        print('Drupal on standard PHP: '+info['urls']['php'])
-        print('Drupal on PHP Rust: '+info['urls']['rust'])
+        print('Drupal on standard PHP: '+info['urls'].get('php','Unavailable: runtime setup did not complete'))
+        print('Drupal on PHP Rust: '+info['urls'].get('rust','Unavailable: runtime setup did not complete'))
+        print('Hostname setup: '+info['network'])
         return
     if args.serve:
         class Handler(BaseHTTPRequestHandler):

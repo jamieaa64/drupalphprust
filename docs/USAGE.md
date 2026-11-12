@@ -178,7 +178,14 @@ service status; `--message` prints the three URLs. Normal tracker regeneration
 also refreshes Markdown in any managed installed copy. An unrelated existing
 `web/project-tracker` directory is never overwritten.
 
-If a named runtime hostname fails DNS, the user can run
+The pre-launch hook registers unresolved local runtime hostnames through
+`ddev hostname`, inheriting the installer terminal for any user authentication.
+Already resolving names are skipped. Coder keeps its existing private routes and
+tunnels. A failed or cancelled registration is shown in the tracker with a retry
+command; it does not suppress the tracker page.
+
+To retry, run `python3 scripts/register-runtime-hostnames.py`, then
+`python3 scripts/tracker.py --install`. Alternatively, the user can run
 `ddev hostname HOST 127.0.0.1` for each hostname in `.ddev/.runtime-urls`.
 DDEV may request an administrator password. Do not add the Rust hostname to
 `additional_hostnames`, which would route it to standard PHP.
