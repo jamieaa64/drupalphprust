@@ -5,9 +5,11 @@ install it through DDEV / One Line Installer, then explore its capabilities, lim
 Coder is optional. Migration tooling, OAuth and MCP are excluded.
 
 These are agent implementation/contribution tasks. Tests are acceptance criteria
-inside each task, not separate project milestones. **Partial** means some local fixes exist but implementation, coverage or contribution
-work remains. No runtime family is complete. Fiber is the next reproduced blocker,
-not evidence that the rest of Drupal works.
+inside each task, not separate project milestones. **Patched** means the described fixes are implemented locally with recorded tests.
+**Partial** is reserved for identified unfinished implementation within a task,
+not simply waiting for upstream. Each detail explains scope and evidence.
+Upstream status is separate: not submitted, prepared, submitted, then merged
+(committed upstream). No fixes have been submitted or merged upstream yet.
 
 1. [Complete Drupal runtime support](01-fiber-generators.md)
 2. [PDO MySQL driver](02-pdo-mysql.md)
@@ -23,6 +25,7 @@ not evidence that the rest of Drupal works.
 12. [Compare capabilities and tradeoffs](12-benchmark.md)
 13. [Work out upstream submission process](13-upstream-process.md)
 14. [Benefits now versus Drupal changes](14-drupal-opportunities.md)
+15. [Partial HTTP request handling](15-http-partial-requests.md)
 
 Resolve Fiber/Generator suspension first; installer and Coder integration can
 progress independently. Validate homepage, login, create, edit and view after

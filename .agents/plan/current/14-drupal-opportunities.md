@@ -24,4 +24,4 @@ changes. No benefit from async, Rust or persistent execution is assumed.
 Draft an architectural proposal separately from language-parity fixes. Verify
 Drupal's current processes before proposing changes; submit only with user approval.
 
-[Overall plan](README.md) · [Previous](13-upstream-process.md) · [Exploration design](../../../docs/COMPARISON.md) · [Contribution process](13-upstream-process.md)
+[Overall plan](README.md) · [Previous](13-upstream-process.md) · [Next](15-http-partial-requests.md) · [Exploration design](../../../docs/COMPARISON.md) · [Contribution process](13-upstream-process.md)

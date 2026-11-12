@@ -95,7 +95,7 @@ do not submit through an API to bypass that preference.
 ## Agent work queue
 
 The [current plan](../.agents/plan/current/README.md) assigns each patch below to
-one implementation/contribution task. Partial status does not imply upstream
+one implementation/contribution task. Patched status does not imply upstream
 readiness; each task includes remaining work and acceptance checks.
 
 ## Establish the submission process before publishing

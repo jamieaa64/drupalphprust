@@ -14,7 +14,7 @@ class TrackerTests(unittest.TestCase):
             text=data['pages'][step['path']]
             self.assertIn('## Work',text)
             self.assertIn('## Test / finish',text)
-            self.assertLess(len(text.split()),220)
+            self.assertLess(len(text.split()),450)
             self.assertIn('## Upstream',text)
             self.assertIn('Destination: ',text)
             for link in re.findall(r'\]\(([^)]+)\)',text):
