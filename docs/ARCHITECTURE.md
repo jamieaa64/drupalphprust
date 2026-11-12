@@ -24,7 +24,8 @@ Compose ownership labels. Standard PHP remains the default web service.
 The static tracker has no PHP interpreter or database configuration and mounts
 only generated tracker content. OLI reads its exact URL through `LAUNCH_PATH`.
 
-The Serena developer service shares project source and has no public route.
+The Serena developer service shares project source. MCP port 9121 stays internal;
+its separate dashboard has a DDEV hostname and a loopback-only port for Coder.
 Host agents connect over STDIO through DDEV; container agents use internal HTTP.
 Installer choices configure Codex/Claude project settings and optionally install
 their DDEV add-ons. See [agent setup](SERENA.md).

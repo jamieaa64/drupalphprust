@@ -71,6 +71,9 @@
 .ddev/commands/host/serena-mcp
 .ddev/.serena-client.json
 .ddev/.serena-setup-complete
+.ddev/.serena-dashboard-port
+.ddev/commands/host/serena-dashboard
+/.serena/
 /.codex/config.toml
 /.mcp.json
 /setup-serena.sh

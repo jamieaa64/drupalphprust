@@ -11,6 +11,15 @@ services:
     working_dir: /var/www/html
     environment:
       IS_DDEV_PROJECT: "true"
+      SERENA_DASHBOARD_HOST: "__SERENA_HOST__"
+      SERENA_DASHBOARD_EXTRA_HOSTS: "${SERENA_DASHBOARD_EXTRA_HOSTS:-}"
+      VIRTUAL_HOST: "__SERENA_HOST__"
+      HTTP_EXPOSE: "80:24282"
+      HTTPS_EXPOSE: "443:24282"
+    expose:
+      - "24282"
+    ports:
+      - "127.0.0.1:__SERENA_PORT__:24282"
     volumes:
       - "${DDEV_APPROOT}:/var/www/html"
     labels:

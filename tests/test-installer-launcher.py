@@ -113,7 +113,7 @@ elif sys.argv[1]=='add-on':
             self.assertIn('VIRTUAL_HOST: "rust.fixture.ddev.site"',service.read_text())
             self.assertIn('HTTPS_EXPOSE: "443:8090"',service.read_text())
             self.assertEqual((root/'.ddev/.runtime-urls').read_text(),
-                'Standard PHP (Zend): https://php.fixture.ddev.site/\nPHP RUST: https://rust.fixture.ddev.site/\nProject tracker: https://tracker.fixture.ddev.site/\n')
+                'Standard PHP (Zend): https://php.fixture.ddev.site/\nPHP RUST: https://rust.fixture.ddev.site/\nProject tracker: https://tracker.fixture.ddev.site/\nSerena dashboard: https://serena.fixture.ddev.site/\n')
             self.assertIn('debian:bookworm-slim-${DDEV_SITENAME}-phpr-built',service.read_text())
             self.assertIn('tracker.fixture.ddev.site',service.read_text())
             self.assertIn('pre-delete:',(root/'.ddev/config.php-rust-lifecycle.yaml').read_text())

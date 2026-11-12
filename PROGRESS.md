@@ -15,6 +15,10 @@ choices for Codex/Claude and host/DDEV execution. Both MCP transports pass Rust
 symbol lookup locally. Fresh Coder and authenticated clients remain unverified.
 [Setup](docs/SERENA.md) · [Receipt](docs/receipts/2026-11-12-serena-ddev.md).
 
+**Serena dashboard:** DDEV route and tracker button implemented; OLI registers
+its hostname and deletion cleans up project-owned aliases. DDEV Freeform button
+prepared and Terraform-validated, not published. [Receipt](docs/receipts/2026-11-12-serena-dashboard.md).
+
 **Current installation:** PHP Rust homepage fails with missing `XMLWriter` ([active task 16](.agents/plan/current/16-xmlwriter.md)); standard PHP responds successfully. Earlier scoped-site blocker: Fiber / Generator suspension. See [installation receipt](docs/receipts/2026-11-12-tracker-landing.md).
 
 **Still open:** Final Drupal flow and combined regressions; reference/reflection coverage; partial-request server blocking; separate upstream contributions. See [runtime completion](.agents/plan/current/01-fiber-generators.md).

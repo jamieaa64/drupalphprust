@@ -63,6 +63,14 @@ function draw(){
   const checked=document.createElement('p');checked.className='muted';checked.textContent=url?'Service check: '+data.installation.checked:'Site links appear after installation.';card.append(checked);runtimes.append(card);
  }
 
+ const serenaUrl=data.installation?.urls?.serena;
+ if(serenaUrl){
+  const card=document.createElement('div');card.className='runtime-card';
+  const link=document.createElement('a');link.textContent='Serena dashboard';link.href=serenaUrl+'dashboard/index.html';link.target='_blank';link.rel='noopener noreferrer';card.append(link);
+  const description=document.createElement('p');description.textContent='Shared Serena server: Rust tools, configuration and logs. Separate host STDIO sessions have their own activity.';card.append(description);
+  runtimes.append(card);
+ }
+
  if(!data.pages[current])current=(data.steps.find(s=>s.status==='active')||data.steps[0]).path;
  document.getElementById('count').textContent=data.steps.filter(s=>s.status==='active').length+' active · '+data.steps.filter(s=>s.status==='patched').length+' patched';
  markdown(document.getElementById('summary'),data.pages['PROGRESS.md'],'PROGRESS.md');

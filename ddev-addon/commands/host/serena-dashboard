@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#ddev-generated
+## Description: Open the shared Serena service dashboard
+## Usage: serena-dashboard
+set -euo pipefail
+url="$(python3 - <<'PY'
+from pathlib import Path
+for line in Path('.ddev/.runtime-urls').read_text().splitlines():
+    if line.startswith('Serena dashboard: '):
+        print(line.split(': ', 1)[1].rstrip('/')+'/dashboard/index.html')
+        break
+else:
+    raise SystemExit('Reconfigure the add-on to generate the Serena dashboard URL.')
+PY
+)"
+ddev launch "$url"

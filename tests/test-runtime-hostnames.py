@@ -43,6 +43,29 @@ class HostnameTests(unittest.TestCase):
         self.assertEqual(module.register(self.root,lambda *a,**kw:None,lambda host:'192.0.2.1'),1)
         self.assertEqual(self.status(),'failed')
 
+    def test_dashboard_registration_is_owned_and_cleaned_on_delete(self):
+        urls=self.root/'.ddev/.runtime-urls'
+        urls.write_text(urls.read_text()+'Serena dashboard: https://serena.custom.test:8443/\n')
+        # Pre-existing aliases are not ours to delete.
+        self.resolved.update(['php.custom.test','rust.custom.test','tracker.custom.test'])
+        self.assertEqual(module.register(self.root,self.run_ddev,self.resolve),0)
+        owned=json.loads((self.root/'.ddev/.runtime-owned-hostnames.json').read_text())
+        self.assertEqual(owned['hosts'],['serena.custom.test'])
+        spec=importlib.util.spec_from_file_location('cleanup',ROOT/'scripts/cleanup-project.py')
+        cleanup=importlib.util.module_from_spec(spec);spec.loader.exec_module(cleanup)
+        removed=[]
+        cleanup.cleanup(self.root,lambda args,check:removed.append(args))
+        self.assertEqual(removed,[['ddev','hostname','-r','serena.custom.test','127.0.0.1']])
+        self.assertEqual(json.loads((self.root/'.ddev/.runtime-owned-hostnames.json').read_text())['hosts'],[])
+
+    def test_preexisting_dashboard_alias_is_not_adopted(self):
+        urls=self.root/'.ddev/.runtime-urls'
+        urls.write_text(urls.read_text()+'Serena dashboard: https://serena.custom.test/\n')
+        self.resolved.add('serena.custom.test')
+        self.assertEqual(module.register(self.root,self.run_ddev,self.resolve),0)
+        owned=json.loads((self.root/'.ddev/.runtime-owned-hostnames.json').read_text())
+        self.assertNotIn('serena.custom.test',owned['hosts'])
+
 # A DNS failure, without depending on this machine's resolver.
 def socket_error():return OSError('unresolved fixture hostname')
 

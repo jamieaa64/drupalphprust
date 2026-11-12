@@ -69,8 +69,8 @@ service uses the generic `ide` context and is shared only for this runtime proje
 Do not activate unrelated projects through that shared endpoint. Host STDIO
 connections each start their own Serena process.
 
-The HTTP port is accessible within the DDEV Docker network only: no host port,
-router alias or public Coder route is configured. It grants source-editing tools
+The MCP HTTP port (9121) is accessible within the DDEV Docker network only.
+The separate dashboard has a DDEV hostname and a workspace-loopback port; see below. It grants source-editing tools
 to clients that can reach that network. A desktop agent on your laptop is not
 the same as an agent running in a remote Coder VM; use the agent in that workspace
 or separately configure an authenticated private connection, never a public MCP URL.
@@ -107,3 +107,28 @@ and authenticated agent sessions require their own acceptance receipts.
 References: [Serena client configuration](https://oraios.github.io/serena/02-usage/030_clients.html),
 [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp),
 [DDEV custom services](https://docs.ddev.com/en/stable/users/extend/custom-compose-files/).
+
+## Shared dashboard and hostname lifecycle
+
+Open `ddev serena-dashboard`, or use the Serena dashboard card in the tracker.
+The stable route is `https://serena.<project-host>/dashboard/index.html` (scheme
+and port follow DDEV). The service dashboard displays the shared HTTP server's
+configuration, tool usage and logs. It does not aggregate separate host STDIO
+processes or the Mac-installed Serena dashboard at port 24282.
+
+OLI's normal pre-completion hostname hook registers the Serena alias through
+DDEV along with the site/tracker aliases. Any administrator authentication stays
+in the installer's terminal. Normal AIBP/DDEV deletion removes only aliases
+recorded as created by this installation; existing aliases are not adopted.
+Older installations can register the new alias and refresh the tracker with:
+
+```bash
+python3 scripts/register-runtime-hostnames.py
+python3 scripts/tracker.py --install
+```
+
+DDEV routes only dashboard port 24282, never MCP port 9121. The dashboard can
+change Serena configuration and shut down its server, so Coder access is
+owner-only. See [DDEV Freeform button](CODER-SERENA.md). Normal local installs
+allocate a free loopback dashboard port; `SERENA_DASHBOARD_PORT=24283` pins it
+for the Coder app. The saved port survives rebuilds.

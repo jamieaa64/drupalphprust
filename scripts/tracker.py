@@ -36,7 +36,7 @@ def installation(root=ROOT):
     urls={}
     if path.is_file():
         for line in path.read_text().splitlines():
-            for prefix,key in [('Standard PHP (Zend): ','php'),('PHP RUST: ','rust'),('Project tracker: ','tracker')]:
+            for prefix,key in [('Standard PHP (Zend): ','php'),('PHP RUST: ','rust'),('Project tracker: ','tracker'),('Serena dashboard: ','serena')]:
                 if line.startswith(prefix): urls[key]=safe_url(line[len(prefix):])
     info={'urls':urls,'services':{},'checked':'Not checked'}
     status=root/'.ddev/.tracker-status.json'
@@ -44,7 +44,7 @@ def installation(root=ROOT):
         saved=json.loads(status.read_text())
         info['checked']=saved.get('checked','Not checked')
         info['services']={k:v for k,v in saved.get('services',{}).items()
-                          if k in ('web','phpr') and v in ('running','stopped','unknown')}
+                          if k in ('web','phpr','serena') and v in ('running','stopped','unknown')}
     network=root/'.ddev/.runtime-network.json'
     info['network']='not-checked'
     if network.is_file():
@@ -60,7 +60,7 @@ def refresh_status():
     info={'tracker':installation()['urls'].get('tracker','Unavailable'),
           'checked':datetime.now(timezone.utc).isoformat(timespec='seconds'),
           'services':{name:raw.get('services',{}).get(name,{}).get('status','unknown')
-                      for name in ('web','phpr')}}
+                      for name in ('web','phpr','serena')}}
     (ROOT/'.ddev/.tracker-status.json').write_text(json.dumps(info)+'\n')
     return info
 
@@ -99,6 +99,8 @@ def main():
         print('Project tracker: '+status['tracker'])
         print('Drupal on standard PHP: '+info['urls'].get('php','Unavailable: runtime setup did not complete'))
         print('Drupal on PHP Rust: '+info['urls'].get('rust','Unavailable: runtime setup did not complete'))
+        if info['urls'].get('serena'):
+            print('Serena dashboard: '+info['urls']['serena']+'dashboard/index.html')
         print('Hostname setup: '+info['network'])
         return
     if args.serve:

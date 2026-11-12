@@ -18,7 +18,8 @@ class RuntimeConfigurationTests(unittest.TestCase):
             with patch.object(configure.subprocess,'run',return_value=result) as run:
                 configure.routes(root,'release','0')
             urls=(root/'.ddev/.runtime-urls').read_text()
-            for host in ['php','rust','tracker']:
+            self.assertEqual(json.loads((root/'.ddev/.runtime-network.json').read_text()),{'status':'pending'})
+            for host in ['php','rust','tracker','serena']:
                 self.assertIn(f'http://{host}.custom.example.test:8088/',urls)
             self.assertNotIn('private-canary',urls)
             self.assertEqual(run.call_args.args[0][-1],'--launch-path=http://tracker.custom.example.test:8088/')
@@ -27,6 +28,10 @@ class RuntimeConfigurationTests(unittest.TestCase):
             self.assertIn('127.0.0.1::8090',compose)
             self.assertNotIn('__TRACKER_HOST__',compose)
             self.assertIn('VIRTUAL_HOST: "tracker.custom.example.test"',compose)
+            self.assertIn('VIRTUAL_HOST: "serena.custom.example.test"',compose)
+            self.assertIn('127.0.0.1::24282',compose)
+            self.assertNotIn('80:9121',compose)
+            self.assertNotIn('443:9121',compose)
             self.assertIn('bookworm-slim-actual-name-phpr-built',(root/'.ddev/.runtime-installed-image').read_text())
 
     def test_credentials_in_primary_url_rejected(self):

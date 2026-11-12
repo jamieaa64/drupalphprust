@@ -1,5 +1,16 @@
 # Optional Coder freeform host
 
+The project targets **DDEV Freeform** (`freeform`) from
+[ddev/coder-ddev/freeform](https://github.com/ddev/coder-ddev/tree/main/freeform).
+The known deployment is [staging-coder.ddev.com](https://staging-coder.ddev.com).
+On 12 November 2026, the existing CLI session could list and download its active
+version, `thankful_west78` (`416847ac-a65f-4303-83e0-e5a3824347a2`). This is verified
+read access, not a promise of future access or evidence of template publication.
+Older workspaces named for PHP Rust still use `canvas-migration`; they are not
+the template target. Do not infer the intended template from those names.
+
+The [Serena dashboard button](CODER-SERENA.md) is prepared against that template.
+
 Coder supplies a machine with Docker and DDEV. The source and local installation
 have no Coder dependency. Both hosts use the same One Line Installer config
 fetched directly from this repository and branch.

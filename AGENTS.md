@@ -47,6 +47,16 @@ Working rules:
 This repository supersedes migration-oriented notes from the original parent folder.
 Its local parent location is historical only and is not a runtime dependency.
 
+## Coder target
+
+Use the existing **DDEV Freeform** template (`freeform`), whose upstream source is
+`https://github.com/ddev/coder-ddev/tree/main/freeform`. The known deployment is
+`https://staging-coder.ddev.com`. Do not substitute the `canvas-migration` template,
+even if an older PHP Rust workspace uses it. Read `docs/CODER.md` and
+`docs/CODER-SERENA.md` for dashboard integration and verified access/version notes.
+Recheck the active template before preparing changes. The user handles template
+push, authentication and workspace updates; never read or copy credentials.
+
 ## Serena for runtime work
 
 The bundled DDEV `serena` service supplies Serena, rust-analyzer and the pinned
@@ -60,6 +70,9 @@ where it runs (host/Coder VM or inside DDEV). See `docs/SERENA.md`.
 - Host agents use `bash /absolute/project/path/scripts/serena-mcp.sh` (also
   available as `ddev serena-mcp`). Inside-DDEV agents use the internal URL
   `http://serena:9121/mcp`; do not publish this endpoint or add a router hostname.
+- `ddev serena-dashboard` opens the separate shared-service dashboard on the
+  `serena.<project-host>` route. It is not the Mac's global Serena instance and
+  does not show tool calls made through independent STDIO sessions.
 - Serena sees `/var/www/html/.work/php-rust` as its project root. Tool-relative
   paths start with `php-rust/`; they are not macOS host paths.
 - Run `python3 scripts/setup-serena.py --client codex --location host` to prepare

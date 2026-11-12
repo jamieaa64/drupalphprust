@@ -41,6 +41,14 @@ def register(root=ROOT, run=subprocess.run, resolve=socket.gethostbyname):
                     or not host or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]*', host)):
                 raise ValueError('Invalid runtime URL')
             hosts.append(host)
+        dashboard = [line.split(': ', 1)[1] for line in lines if line.startswith('Serena dashboard: ')]
+        if dashboard:
+            if len(dashboard) != 1: raise ValueError('Ambiguous dashboard URL')
+            url = urlsplit(dashboard[0])
+            if (url.scheme not in ('http','https') or url.username or url.password or url.query or url.fragment
+                    or url.path not in ('','/') or not url.hostname or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]*',url.hostname)):
+                raise ValueError('Invalid dashboard URL')
+            hosts.append(url.hostname)
         for host in dict.fromkeys(hosts):
             try:
                 if resolve(host) == '127.0.0.1':
