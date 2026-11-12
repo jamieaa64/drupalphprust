@@ -125,6 +125,10 @@
     {
       "file": "spl-fileinfo-ctime.patch",
       "sha256": "805466da71e030f2f4fe83c547c3538d507f0f17c422b7b365331205a6116b2a"
+    },
+    {
+      "file": "xmlwriter-memory.patch",
+      "sha256": "8cdd88fc1f019c4cd4f2ee519b69e3adfd8efa77fba0419ba3d1d59a1d013a26"
     }
   ]
 }

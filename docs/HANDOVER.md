@@ -18,7 +18,10 @@ stay local to each host. See USAGE.md and CODER.md before provisioning.
 
 The installed tracker opens before Drupal exploration and prominently renders
 [Try it](TRY-IT.md): known failures, ownership and recovery. The fresh CMS homepage
-currently fails on PHP Rust with missing XMLWriter, owned by active task 16.
+now renders on PHP Rust after the XMLWriter memory fix, owned by task 16.
+See [implementation evidence](receipts/2026-11-12-xmlwriter-memory.md): 32
+combined probes pass and the browser shows the expected hero. Authenticated
+login/create/edit/view remains unverified.
 The Fiber/Generator result below comes from the earlier reduced-feature site.
 Full parity is not required to share this experimental environment.
 
@@ -53,7 +56,7 @@ See `docs/receipts/2026-11-12-fiber-generator-blocker.md` for the next work.
 Serena, rust-analyzer and the pinned Rust toolchain are now supplied by the DDEV
 `serena` service. The installer asks which agent and execution location to
 configure. Existing sites: follow [Serena setup](SERENA.md), reconnect MCP and call
-`initial_instructions` before Rust work. XMLWriter still needs implementation;
+`initial_instructions` before Rust work. XMLWriter memory support is implemented;
 the standalone reproduction is committed. No host Rust installation is needed.
 
 ```bash
@@ -113,7 +116,8 @@ All exports can be reconstructed without the old integration Git branch.
 
 ## Known exclusions / hazards
 
-- `simple_sitemap`: XMLWriter absent; `klaro`: DOM XPath gaps.
+- `simple_sitemap`: memory XMLWriter implemented; sitemap generation itself remains unverified.
+- `klaro`: DOM XPath gaps.
 - Asset aggregation: registered stream-wrapper file writes incomplete.
 - Request cron disabled; previous Canvas health/schema callback path not verified.
 - Server idle-preconnect test passes, but partial HTTP requests can still block its

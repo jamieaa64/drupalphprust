@@ -1,13 +1,28 @@
 # 16. Implement XMLWriter for out-of-box Drupal CMS
 
-Status: active
+Status: patched
 
 Destination: PHP Rust + this repository
 
-The untouched local installation cannot serve its homepage on PHP Rust: HTTP 500,
-`Class "XMLWriter" not found` in Symfony ContainerBuilder.php:416. Standard PHP
-returns HTTP 200. This is an active acceptance blocker, separate from task 08's
-historical deferred scope and the earlier scoped Fiber/Generator failure.
+The missing-XMLWriter homepage blocker is fixed locally. The unchanged Drupal
+homepage returns HTTP 200 and its hero content renders in the browser. Standard
+PHP still responds successfully. Authenticated create/edit/view remains open.
+
+`xmlwriter-memory.patch` implements OO memory writers through libxml2, including
+inheritance, namespaces, escaping, indentation, buffer lifecycle and PHP/libxml
+error handling. Three parity fixtures and all 32 combined runtime probes pass.
+Two Cargo integration tests pass in dev-release; the required adversarial review
+found no remaining blocker for this tested scope. Fresh reconstruction matches.
+
+URI, DTD and procedural APIs remain absent. Native buffers for expired objects
+are reclaimed at later allocation or request shutdown, not necessarily `unset`.
+PHP 8.5-specific reflection/type/error contracts are not certified. See
+[implementation receipt](../../../docs/receipts/2026-11-12-xmlwriter-memory.md).
+
+The developer image now bundles a pinned PHP 8.5.7 oracle. The real upstream
+differential checks pass without bypasses; the full release run reports 1,757
+passes, 2 ignored and 2 failures reproduced on the pre-XMLWriter baseline.
+Run `bash scripts/test-runtime-upstream.sh`; full upstream promotion remains open.
 
 ## Work
 
@@ -22,35 +37,23 @@ historical deferred scope and the earlier scoped Fiber/Generator failure.
 ## Test / finish
 
 - [x] Reproduce ordinary HTTPS homepage: Rust 500, standard PHP 200 on this installation.
-- [ ] Match Zend output, escaping, state transitions and error behaviour for required APIs.
+- [x] Match Zend output, escaping, state transitions and error behaviour for required APIs.
 - [ ] Run upstream-required checks and relevant combined runtime regressions.
-- [ ] Rebuild the candidate and verify the unchanged CMS homepage, then continue
-  the full login/create/edit/view journey; record subsequent blockers separately.
+- [x] Rebuild the candidate and verify the unchanged CMS homepage.
+- [ ] Continue the full login/create/edit/view journey; record subsequent blockers separately.
 
 ## Upstream
 
-Not submitted. Implementation has not started; this is not a patched task.
-Prepare a separate contribution only after implementation, review and recorded tests.
+Not submitted. Scoped memory support is patched; full upstream promotion gates
+remain open. Keep this as a discrete contribution with its review and fixtures.
 The user handles authentication and pushes; no upstream submission yet.
 
-## Verified continuation on phprusttest1 (2026-11-12)
+## Initial reproduction on phprusttest1 (2026-11-12, before the patch)
 
-- Reconstructed all 31 patches at the pinned upstream revision in `.work/php-rust`.
-- Confirmed the installed homepage still returns HTTP 500 for missing XMLWriter;
-  standard PHP and tracker return HTTP 200 (not full browser acceptance).
-- Traced the dependency to Simple Sitemap's `SitemapWriter extends XMLWriter`,
-  whose constructor does not call a parent constructor. Its generators use memory
-  output, indentation, document/element boundaries, attributes, PI and comments.
-- Added standalone `tests/probes/xmlwriter-sitemap.php` and corresponding PHPT.
-  Standard PHP 8.4.27 / libxml 2.9.14 passes with empty stderr; installed Rust exits
-  255 at the subclass declaration. The fixture covers escaping, UTF-8, inherited
-  construction, output retention/draining and reopening a memory writer.
-- Serena tooling is now supplied by the bundled DDEV service, with verified Rust
-  symbol lookup over STDIO and internal HTTP. Reconnect the agent to the generated
-  project MCP configuration before implementation. No runtime patch or class stub
-  has been added. See [agent setup](../../../docs/SERENA.md).
-
-See [continuation receipt](../../../docs/receipts/2026-11-12-phprusttest1-xmlwriter.md).
+The 31-patch candidate returned HTTP 500 for missing XMLWriter. The independent
+sitemap fixture passed Zend and exited 255 on Rust at its subclass declaration.
+This historical baseline is preserved in the
+[reproduction receipt](../../../docs/receipts/2026-11-12-phprusttest1-xmlwriter.md).
 
 [Overall plan](README.md) · [Runtime completion](01-fiber-generators.md) ·
 [Installation evidence](../../../docs/receipts/2026-11-12-tracker-landing.md)

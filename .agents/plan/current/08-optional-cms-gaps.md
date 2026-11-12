@@ -4,7 +4,9 @@ Status: deferred
 
 Destination: PHP Rust
 
-Limited DOM/stream patches exist; XMLWriter, XPath, stream writes and cron gaps remain outside the agreed baseline.
+Limited DOM/stream patches exist; XPath, stream writes and cron gaps remain.
+XMLWriter memory support is now owned and patched in task 16; full XMLWriter
+API coverage remains outside that focused contribution.
 
 ## Work
 

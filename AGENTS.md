@@ -81,3 +81,6 @@ where it runs (host/Coder VM or inside DDEV). See `docs/SERENA.md`.
 - Trust/open the project and reconnect MCP in the client after setup. If tools
   are absent, diagnose the connection; do not silently bypass upstream's Serena
   requirement. Never replace global agent configuration or read credentials.
+- Run `bash scripts/test-runtime-upstream.sh` for upstream Cargo tests with the
+  bundled PHP 8.5.7 oracle. It disables missing-oracle bypasses. Keep this language
+  parity check separate from Drupal comparisons using standard DDEV web PHP.

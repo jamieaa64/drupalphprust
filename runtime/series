@@ -29,3 +29,4 @@ preg-byte-offset.patch
 chained-magic-argument.patch
 static-property-reference.patch
 spl-fileinfo-ctime.patch
+xmlwriter-memory.patch

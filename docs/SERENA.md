@@ -132,3 +132,11 @@ change Serena configuration and shut down its server, so Coder access is
 owner-only. See [DDEV Freeform button](CODER-SERENA.md). Normal local installs
 allocate a free loopback dashboard port; `SERENA_DASHBOARD_PORT=24283` pins it
 for the Coder app. The saved port survives rebuilds.
+
+## Upstream PHP oracle
+
+The developer image also supplies an isolated PHP 8.5.7 CLI executable and its
+source archive from a digest-pinned official PHP image. Run
+`bash scripts/test-runtime-upstream.sh` from the project to use the upstream
+Cargo/differential harness with `PHP_ORACLE` set and oracle skipping disabled.
+This does not change Drupal's web PHP version. See [testing](TESTING.md).

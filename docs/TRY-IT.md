@@ -15,20 +15,19 @@ this shared database.
 
 ## Current known failures
 
-- **Fresh CMS homepage: missing XMLWriter.** PHP Rust returns HTTP 500 on the
-  observed installation because this PHP class is absent. This is expected to
-  remain broken until [task 16](../.agents/plan/current/16-xmlwriter.md) is fixed.
-  The exact dependency call path still needs investigation. Standard PHP returned
-  HTTP 200 on the same installation. Reinstalling does not implement XMLWriter.
+- **Fresh CMS homepage now renders.** The XMLWriter fix in
+  [task 16](../.agents/plan/current/16-xmlwriter.md) clears the missing-class
+  failure. Both runtime homepages return HTTP 200; the Rust hero was verified in
+  a browser. Full login/create/edit/view is still pending. See the
+  [implementation receipt](receipts/2026-11-12-xmlwriter-memory.md).
 - **Earlier reduced-feature experiment: Fiber suspension inside a Generator.**
   Page creation reached this runtime failure after earlier fixes and explicit
   feature exclusions. [Task 01](../.agents/plan/current/01-fiber-generators.md)
   owns it; it has not yet been reached on the untouched fresh CMS installation.
 - **Additional known coverage gaps:** DOM XPath, stream-wrapper writes, request
   cron and other CMS paths remain unverified or incomplete. See the historical
-  scope in [task 08](../.agents/plan/current/08-optional-cms-gaps.md). XMLWriter now
-  has its own active task; the older deferred classification is not a fresh-site
-  compatibility claim.
+  scope in [task 08](../.agents/plan/current/08-optional-cms-gaps.md). XMLWriter memory support
+  is patched separately; URI, DTD and procedural APIs remain absent.
 - **HTTP server limitation:** partial requests may block the development server.
   [Task 15](../.agents/plan/current/15-http-partial-requests.md) owns this. Do not
   treat the experimental server as production-ready.

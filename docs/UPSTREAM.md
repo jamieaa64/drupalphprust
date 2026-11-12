@@ -57,6 +57,7 @@ use declared dependency chains or rebuild a minimal branch from pinned upstream.
 | chained-magic-argument | Dereference receiver before deferred property read; magic/hooks/visibility fixtures |
 | spl-fileinfo-ctime | Timestamp accessor, inherited iterator behavior and failed-stat RuntimeException |
 | static-property-reference | Bind static storage to source cell, preserve old aliases, return references and execute finally; static-reference/return-reference dependencies |
+| xmlwriter-memory | OO libxml memory writer; inheritance, buffer lifecycle, namespaces, encoding and PHP/libxml diagnostics; URI/DTD/procedural APIs excluded |
 
 The `static-property-reference` candidate covers static-property reference binding
 and bare reference returns. Its alias/rebinding/finally fixture passes Zend parity and fixes Views class loading;

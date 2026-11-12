@@ -4,8 +4,11 @@ Status: active
 
 Destination: PHP Rust + this repository
 
-Fiber/Generator suspension is the next reproduced blocker, not a complete inventory
-of remaining defects. Continue through Drupal and minimise each new failure.
+Fiber/Generator suspension was reproduced on the earlier reduced-feature site,
+not a complete inventory of remaining defects. The fresh installation now serves
+its homepage and anonymous login form after task 16's XMLWriter fix; authenticated
+create/edit/view still needs validation. Continue through Drupal and minimise each
+new failure. See the [XMLWriter receipt](../../../docs/receipts/2026-11-12-xmlwriter-memory.md).
 
 ## Work
 

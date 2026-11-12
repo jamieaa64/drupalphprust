@@ -3,7 +3,7 @@
 FROM rust:bookworm@sha256:e6f2cff35d0f309acf8433b4f05878ed77092602c5065cc81801177da0bb3a9c AS build
 ARG PHPR_REF=72f688c3183b79858c01d250ce3999d86e143544
 ARG CARGO_BUILD_JOBS=2
-RUN apt-get update && apt-get install -y --no-install-recommends clang libclang-dev pkg-config libssl-dev libgd-dev libtidy-dev libxslt1-dev cmake && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends clang libclang-dev pkg-config libssl-dev libgd-dev libtidy-dev libxslt1-dev libxml2-dev cmake && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 RUN git init && git remote add origin https://github.com/francescotinti/php-rust.git && git fetch --depth=1 origin "$PHPR_REF" && git checkout --detach FETCH_HEAD
 RUN cd /src/php-rust && rustup show active-toolchain
@@ -69,11 +69,13 @@ COPY patches/static-property-reference.patch /tmp/static-property-reference.patc
 RUN git apply --check /tmp/static-property-reference.patch && git apply /tmp/static-property-reference.patch
 COPY patches/spl-fileinfo-ctime.patch /tmp/spl-fileinfo-ctime.patch
 RUN git apply --check /tmp/spl-fileinfo-ctime.patch && git apply /tmp/spl-fileinfo-ctime.patch
+COPY patches/xmlwriter-memory.patch /tmp/xmlwriter-memory.patch
+RUN git apply --check /tmp/xmlwriter-memory.patch && git apply /tmp/xmlwriter-memory.patch
 WORKDIR /src/php-rust
 ARG RUNTIME_PROFILE=release
 RUN --mount=type=cache,target=/usr/local/cargo/registry --mount=type=cache,target=/usr/local/cargo/git --mount=type=cache,target=/out CARGO_TARGET_DIR=/out cargo build --locked --profile "$RUNTIME_PROFILE" -p php-cli -p php-server && mkdir /dist && cp "/out/$RUNTIME_PROFILE/phpr" "/out/$RUNTIME_PROFILE/php-server" /dist/
 FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl3 libgd3 libtidy5deb1 libxslt1.1 && mkdir -p /opt/phpr/lib && cp -L /usr/lib/*/libtidy.so.5deb1 /opt/phpr/lib/ && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libssl3 libgd3 libtidy5deb1 libxslt1.1 libxml2 && mkdir -p /opt/phpr/lib && cp -L /usr/lib/*/libtidy.so.5deb1 /opt/phpr/lib/ && rm -rf /var/lib/apt/lists/*
 COPY --from=build /dist/phpr /dist/php-server /usr/local/bin/
 COPY --from=build /src/LICENSE /usr/share/doc/php-rust/LICENSE
 LABEL org.opencontainers.image.source="https://github.com/francescotinti/php-rust"

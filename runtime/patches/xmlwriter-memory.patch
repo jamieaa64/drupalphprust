@@ -1,0 +1,529 @@
+diff --git a/php-rust/crates/php-runtime/src/lower/mod.rs b/php-rust/crates/php-runtime/src/lower/mod.rs
+--- a/php-rust/crates/php-runtime/src/lower/mod.rs
++++ b/php-rust/crates/php-runtime/src/lower/mod.rs
+@@ -753,6 +753,7 @@
+     include_str!("prelude/pdo.php"),
+     include_str!("prelude/sqlite3.php"),
+     include_str!("prelude/dom.php"),
++    include_str!("prelude/xmlwriter.php"),
+     include_str!("prelude/session.php"),
+     include_str!("prelude/tidy.php"),
+ );
+diff --git a/php-rust/crates/php-runtime/src/lower/prelude/xmlwriter.php b/php-rust/crates/php-runtime/src/lower/prelude/xmlwriter.php
+new file mode 100644
+--- /dev/null
++++ b/php-rust/crates/php-runtime/src/lower/prelude/xmlwriter.php
+@@ -0,0 +1,32 @@
++// In-memory ext/xmlwriter. Native libxml state is request-local, never a PHP property.
++class XMLWriter {
++    public function openMemory() { return __xmlwriter($this, "openMemory"); }
++    public function setIndent(bool $enable) { return __xmlwriter($this, "setIndent", $enable); }
++    public function setIndentString(string $indentation) { return __xmlwriter($this, "setIndentString", $indentation); }
++    public function startDocument(?string $version = '1.0', ?string $encoding = null, ?string $standalone = null) { return __xmlwriter($this, "startDocument", $version, $encoding, $standalone); }
++    public function endDocument() { return __xmlwriter($this, "endDocument"); }
++    public function startElement(string $name) { return __xmlwriter($this, "startElement", $name); }
++    public function endElement() { return __xmlwriter($this, "endElement"); }
++    public function fullEndElement() { return __xmlwriter($this, "fullEndElement"); }
++    public function writeElement(string $name, ?string $content = null) { return __xmlwriter($this, "writeElement", $name, $content); }
++    public function startElementNs(?string $prefix, string $name, ?string $namespace) { return __xmlwriter($this, "startElementNs", $prefix, $name, $namespace); }
++    public function writeElementNs(?string $prefix, string $name, ?string $namespace, ?string $content = null) { return __xmlwriter($this, "writeElementNs", $prefix, $name, $namespace, $content); }
++    public function startAttribute(string $name) { return __xmlwriter($this, "startAttribute", $name); }
++    public function endAttribute() { return __xmlwriter($this, "endAttribute"); }
++    public function writeAttribute(string $name, string $value) { return __xmlwriter($this, "writeAttribute", $name, $value); }
++    public function startAttributeNs(?string $prefix, string $name, ?string $namespace) { return __xmlwriter($this, "startAttributeNs", $prefix, $name, $namespace); }
++    public function writeAttributeNs(?string $prefix, string $name, ?string $namespace, string $value) { return __xmlwriter($this, "writeAttributeNs", $prefix, $name, $namespace, $value); }
++    public function text(string $content) { return __xmlwriter($this, "text", $content); }
++    public function writeRaw(string $content) { return __xmlwriter($this, "writeRaw", $content); }
++    public function writeComment(string $content) { return __xmlwriter($this, "writeComment", $content); }
++    public function startComment() { return __xmlwriter($this, "startComment"); }
++    public function endComment() { return __xmlwriter($this, "endComment"); }
++    public function writeCdata(string $content) { return __xmlwriter($this, "writeCdata", $content); }
++    public function startCdata() { return __xmlwriter($this, "startCdata"); }
++    public function endCdata() { return __xmlwriter($this, "endCdata"); }
++    public function writePi(string $target, string $content) { return __xmlwriter($this, "writePi", $target, $content); }
++    public function startPi(string $target) { return __xmlwriter($this, "startPi", $target); }
++    public function endPi() { return __xmlwriter($this, "endPi"); }
++    public function outputMemory(bool $flush = true) { return __xmlwriter($this, "outputMemory", $flush); }
++    public function flush(bool $empty = true) { return __xmlwriter($this, "flush", $empty); }
++}
+diff --git a/php-rust/crates/php-runtime/src/vm/mod.rs b/php-rust/crates/php-runtime/src/vm/mod.rs
+--- a/php-rust/crates/php-runtime/src/vm/mod.rs
++++ b/php-rust/crates/php-runtime/src/vm/mod.rs
+@@ -75,6 +75,7 @@
+ mod sondaprice;
+ mod coroutines;
+ mod dom;
++mod xmlwriter;
+ pub mod cli_stream;
+ mod exceptions;
+ mod xmlparser;
+@@ -847,6 +848,7 @@
+         prelude_fns: Vec::new(),
+         umask: 0o22,
+         dom_docs: HashMap::default(),
++        xml_writers: HashMap::default(),
+         next_dom: 1,
+         libxml_internal: false,
+         libxml_errors: Vec::new(),
+@@ -3654,6 +3656,7 @@
+     /// ext/dom documents (`DOMDocument` handles): doc id → arena tree, backing
+     /// the `__dom_*` host builtins the prelude DOM classes delegate to.
+     dom_docs: HashMap<u32, dom::DomDoc>,
++    xml_writers: HashMap<u32, xmlwriter::MemoryWriter>,
+     /// Next DOM document id (monotonic).
+     next_dom: u32,
+     /// ext/libxml error surface: `libxml_use_internal_errors` flag and the
+@@ -3928,6 +3931,7 @@
+         self.xslt_sheets.clear();
+         self.tidy_docs.clear();
+         self.dom_docs.clear();
++        self.xml_writers.clear();
+ 
+         // Sequence/iteration state
+         self.strtok = None;
+@@ -15406,6 +15410,7 @@
+     b"gzopen" => vm.ho_gzopen(args),
+     b"serialize" => vm.ho_serialize(args),
+     b"umask" => vm.ho_umask(args),
++    b"__xmlwriter" => vm.ho_xmlwriter(args),
+     b"__dom_new_doc" => vm.ho_dom_new_doc(args),
+     b"__dom_load" => vm.ho_dom_load(args),
+     b"__dom_canonic_path" => vm.ho_dom_canonic_path(args),
+diff --git a/php-rust/crates/php-runtime/src/vm/run.rs b/php-rust/crates/php-runtime/src/vm/run.rs
+--- a/php-rust/crates/php-runtime/src/vm/run.rs
++++ b/php-rust/crates/php-runtime/src/vm/run.rs
+@@ -4554,7 +4554,9 @@
+                     };
+                     // Opaque handle classes (GdImage) are uncloneable, like
+                     // their internal PHP counterparts.
+-                    if crate::vm::is_opaque_handle_class(o.borrow().class_name.as_bytes()) {
++                    if crate::vm::is_opaque_handle_class(o.borrow().class_name.as_bytes())
++                        || self.class_index.get(&b"xmlwriter"[..]).is_some_and(|&cid| self.instance_of(o.borrow().class_id as usize, cid))
++                    {
+                         let msg = format!(
+                             "Trying to clone an uncloneable object of class {}",
+                             String::from_utf8_lossy(o.borrow().class_name.as_bytes())
+diff --git a/php-rust/crates/php-runtime/src/vm/xmlwriter.rs b/php-rust/crates/php-runtime/src/vm/xmlwriter.rs
+new file mode 100644
+--- /dev/null
++++ b/php-rust/crates/php-runtime/src/vm/xmlwriter.rs
+@@ -0,0 +1,368 @@
++//! In-memory XMLWriter binding. All unsafe code is confined to libxml calls.
++use super::Vm;
++use php_types::{Object, PhpError, PhpStr, Zval, convert};
++use std::{
++    cell::RefCell,
++    ffi::{CString, c_int, c_void},
++    ptr,
++    rc::{Rc, Weak},
++};
++
++#[link(name = "xml2")]
++unsafe extern "C" {
++    fn xmlBufferCreate() -> *mut c_void;
++    fn xmlBufferFree(buffer: *mut c_void);
++    fn xmlBufferContent(buffer: *const c_void) -> *const u8;
++    fn xmlBufferLength(buffer: *const c_void) -> c_int;
++    fn xmlBufferEmpty(buffer: *mut c_void);
++    fn xmlNewTextWriterMemory(buffer: *mut c_void, compression: c_int) -> *mut c_void;
++    fn xmlFreeTextWriter(writer: *mut c_void);
++    fn xmlTextWriterFlush(writer: *mut c_void) -> c_int;
++    fn xmlTextWriterSetIndent(writer: *mut c_void, indent: c_int) -> c_int;
++    fn xmlTextWriterStartDocument(
++        writer: *mut c_void,
++        version: *const u8,
++        encoding: *const u8,
++        standalone: *const u8,
++    ) -> c_int;
++    fn xmlValidateName(name: *const u8, space: c_int) -> c_int;
++    fn xmlTextWriterEndDocument(writer: *mut c_void) -> c_int;
++    fn xmlTextWriterStartElement(writer: *mut c_void, a0: *const u8) -> c_int;
++    fn xmlTextWriterEndElement(writer: *mut c_void) -> c_int;
++    fn xmlTextWriterFullEndElement(writer: *mut c_void) -> c_int;
++    fn xmlTextWriterWriteElement(writer: *mut c_void, a0: *const u8, a1: *const u8) -> c_int;
++    fn xmlTextWriterStartElementNS(
++        writer: *mut c_void,
++        a0: *const u8,
++        a1: *const u8,
++        a2: *const u8,
++    ) -> c_int;
++    fn xmlTextWriterWriteElementNS(
++        writer: *mut c_void,
++        a0: *const u8,
++        a1: *const u8,
++        a2: *const u8,
++        a3: *const u8,
++    ) -> c_int;
++    fn xmlTextWriterStartAttribute(writer: *mut c_void, a0: *const u8) -> c_int;
++    fn xmlTextWriterEndAttribute(writer: *mut c_void) -> c_int;
++    fn xmlTextWriterWriteAttribute(writer: *mut c_void, a0: *const u8, a1: *const u8) -> c_int;
++    fn xmlTextWriterStartAttributeNS(
++        writer: *mut c_void,
++        a0: *const u8,
++        a1: *const u8,
++        a2: *const u8,
++    ) -> c_int;
++    fn xmlTextWriterWriteAttributeNS(
++        writer: *mut c_void,
++        a0: *const u8,
++        a1: *const u8,
++        a2: *const u8,
++        a3: *const u8,
++    ) -> c_int;
++    fn xmlTextWriterWriteString(writer: *mut c_void, a0: *const u8) -> c_int;
++    fn xmlTextWriterWriteRaw(writer: *mut c_void, a0: *const u8) -> c_int;
++    fn xmlTextWriterWriteComment(writer: *mut c_void, a0: *const u8) -> c_int;
++    fn xmlTextWriterStartComment(writer: *mut c_void) -> c_int;
++    fn xmlTextWriterEndComment(writer: *mut c_void) -> c_int;
++    fn xmlTextWriterWriteCDATA(writer: *mut c_void, a0: *const u8) -> c_int;
++    fn xmlTextWriterStartCDATA(writer: *mut c_void) -> c_int;
++    fn xmlTextWriterEndCDATA(writer: *mut c_void) -> c_int;
++    fn xmlTextWriterWritePI(writer: *mut c_void, a0: *const u8, a1: *const u8) -> c_int;
++    fn xmlTextWriterStartPI(writer: *mut c_void, a0: *const u8) -> c_int;
++    fn xmlTextWriterEndPI(writer: *mut c_void) -> c_int;
++    fn xmlTextWriterSetIndentString(writer: *mut c_void, a0: *const u8) -> c_int;
++}
++
++/// Owns both allocations; the writer borrows the buffer and must be freed first.
++/// Weak identity prevents a recycled PHP object id from inheriting an old writer.
++pub(super) struct MemoryWriter {
++    owner: Weak<RefCell<Object>>,
++    writer: *mut c_void,
++    buffer: *mut c_void,
++}
++impl Drop for MemoryWriter {
++    fn drop(&mut self) {
++        // Cleanup can flush failed encoders. Never leak native diagnostics to
++        // process stderr or run PHP callbacks from Rust Drop.
++        let _capture = ErrorCapture::new();
++        // SAFETY: uniquely owned, non-null allocations from new(); writer first.
++        unsafe {
++            xmlFreeTextWriter(self.writer);
++            xmlBufferFree(self.buffer);
++        }
++    }
++}
++impl MemoryWriter {
++    fn new(owner: &Rc<RefCell<Object>>) -> Option<Self> {
++        // SAFETY: libxml creates independent allocations; failure paths free them.
++        unsafe {
++            let buffer = xmlBufferCreate();
++            if buffer.is_null() {
++                return None;
++            }
++            let writer = xmlNewTextWriterMemory(buffer, 0);
++            if writer.is_null() {
++                xmlBufferFree(buffer);
++                return None;
++            }
++            Some(Self {
++                owner: Rc::downgrade(owner),
++                writer,
++                buffer,
++            })
++        }
++    }
++    fn output(&mut self, empty: bool) -> Vec<u8> {
++        // SAFETY: libxml owns the buffer; copy its initialized bytes before emptying.
++        unsafe {
++            xmlTextWriterFlush(self.writer);
++            let len = xmlBufferLength(self.buffer).max(0) as usize;
++            let data = xmlBufferContent(self.buffer);
++            let bytes = if len == 0 {
++                Vec::new()
++            } else {
++                std::slice::from_raw_parts(data, len).to_vec()
++            };
++            if empty {
++                xmlBufferEmpty(self.buffer);
++            }
++            bytes
++        }
++    }
++}
++
++// Validate names before libxml mutates its writer. The argument-number wording
++// mirrors the PHP 8.4 oracle used by the Drupal control.
++fn validate_name(operation: &[u8], strings: &[Option<CString>]) -> Result<(), PhpError> {
++    let (index, kind, parameter) = match operation {
++        b"startElement" => (0, "element name", ""),
++        b"writeElement" => (0, "element name", " ($content)"),
++        b"startElementNs" | b"writeElementNs" => (1, "element name", " ($namespace)"),
++        b"startAttribute" => (0, "attribute name", ""),
++        b"writeAttribute" => (0, "attribute name", " ($value)"),
++        b"startAttributeNs" | b"writeAttributeNs" => (1, "attribute name", " ($namespace)"),
++        b"startPi" => (0, "PI target", ""),
++        b"writePi" => (0, "PI target", " ($content)"),
++        _ => return Ok(()),
++    };
++    let value = strings.get(index).and_then(|s| s.as_ref());
++    // SAFETY: each CString owns a terminating NUL; null is handled separately.
++    if value.is_none_or(|s| unsafe { xmlValidateName(s.as_ptr().cast(), 0) } != 0) {
++        let name = value.map(|s| s.to_string_lossy()).unwrap_or_default();
++        return Err(PhpError::ValueError(format!(
++            "XMLWriter::{}(): Argument #{}{} must be a valid {}, \"{}\" given",
++            String::from_utf8_lossy(operation),
++            index + 2,
++            parameter,
++            kind,
++            name
++        )));
++    }
++    Ok(())
++}
++
++type ErrorHandler = Option<unsafe extern "C" fn(*mut c_void, *mut XmlError)>;
++#[repr(C)]
++struct XmlError {
++    domain: c_int,
++    code: c_int,
++    message: *const std::ffi::c_char,
++    level: c_int,
++    file: *const std::ffi::c_char,
++    line: c_int,
++    str1: *const std::ffi::c_char,
++    str2: *const std::ffi::c_char,
++    str3: *const std::ffi::c_char,
++    int1: c_int,
++    int2: c_int,
++    ctxt: *mut c_void,
++    node: *mut c_void,
++}
++unsafe extern "C" {
++    fn __xmlStructuredError() -> *mut ErrorHandler;
++    fn __xmlStructuredErrorContext() -> *mut *mut c_void;
++    fn xmlSetStructuredErrorFunc(context: *mut c_void, handler: ErrorHandler);
++}
++unsafe extern "C" fn collect_error(context: *mut c_void, error: *mut XmlError) {
++    if context.is_null() || error.is_null() {
++        return;
++    }
++    // SAFETY: installed only by ErrorCapture with a live boxed Vec; libxml
++    // supplies an xmlError with the stable layout declared above.
++    unsafe {
++        let e = &*error;
++        let bytes = |p: *const std::ffi::c_char| {
++            if p.is_null() {
++                Vec::new()
++            } else {
++                std::ffi::CStr::from_ptr(p).to_bytes().to_vec()
++            }
++        };
++        let messages = &mut *context.cast::<Vec<super::dom::LxErr>>();
++        messages.push(super::dom::LxErr {
++            level: e.level as i64,
++            code: e.code as i64,
++            line: e.line as i64,
++            column: e.int2 as i64,
++            message: String::from_utf8_lossy(&bytes(e.message)).into_owned(),
++            file: bytes(e.file),
++        });
++    }
++}
++/// Restore the previous thread-local callback before invoking any PHP handler.
++/// No PHP code executes while libxml holds our capture context.
++struct ErrorCapture {
++    previous: ErrorHandler,
++    context: *mut c_void,
++    messages: Box<Vec<super::dom::LxErr>>,
++}
++impl ErrorCapture {
++    fn new() -> Self {
++        let mut messages = Box::new(Vec::<super::dom::LxErr>::new());
++        // SAFETY: libxml exposes per-thread handler slots; boxed storage stays put.
++        unsafe {
++            let previous = *__xmlStructuredError();
++            let context = *__xmlStructuredErrorContext();
++            xmlSetStructuredErrorFunc(
++                (&mut *messages as *mut Vec<super::dom::LxErr>).cast(),
++                Some(collect_error),
++            );
++            Self {
++                previous,
++                context,
++                messages,
++            }
++        }
++    }
++}
++impl Drop for ErrorCapture {
++    fn drop(&mut self) {
++        // SAFETY: restores the pair captured on this thread, before freeing storage.
++        unsafe {
++            xmlSetStructuredErrorFunc(self.context, self.previous);
++        }
++    }
++}
++
++impl<'m> Vm<'m> {
++    pub(super) fn ho_xmlwriter(&mut self, args: Vec<Zval>) -> Result<Zval, PhpError> {
++        let Some(Zval::Object(owner)) = args.first() else {
++            return Err(PhpError::TypeError("XMLWriter object required".into()));
++        };
++        let id = owner.borrow().id;
++        let operation = convert::to_zstr_cast(args.get(1).unwrap_or(&Zval::Null), &mut self.diags);
++        let operation = operation.as_bytes();
++        if operation == b"openMemory" {
++            // Native allocations never keep PHP objects alive. Sweep expired handles
++            // at allocation, and release all remaining buffers at request shutdown.
++            self.xml_writers.retain(|_, w| w.owner.strong_count() != 0);
++            let Some(writer) = MemoryWriter::new(owner) else {
++                return Ok(Zval::Bool(false));
++            };
++            self.xml_writers.insert(id, writer);
++            return Ok(Zval::Bool(true));
++        }
++        let Some(writer) = self
++            .xml_writers
++            .get_mut(&id)
++            .filter(|w| w.owner.ptr_eq(&Rc::downgrade(owner)))
++        else {
++            return Err(PhpError::Error(
++                "Invalid or uninitialized XMLWriter object".into(),
++            ));
++        };
++        if operation == b"outputMemory" || operation == b"flush" {
++            let empty = args
++                .get(2)
++                .map(|v| convert::to_bool(v, &mut self.diags))
++                .unwrap_or(true);
++            let mut capture = ErrorCapture::new();
++            let output = writer.output(empty);
++            let errors = std::mem::take(&mut *capture.messages);
++            drop(capture);
++            // PHP buffers libxml encoder errors in internal mode; outputMemory
++            // does not turn them into PHP warnings in normal mode.
++            if self.libxml_internal {
++                self.libxml_errors.extend(errors);
++            }
++            return Ok(Zval::Str(PhpStr::new(output)));
++        }
++        // PHP/libxml's string API consumes bytes up to the first NUL, including
++        // names. Keep this observable truncation instead of rejecting PHP strings.
++        let strings: Vec<Option<CString>> = args
++            .iter()
++            .skip(2)
++            .map(|v| {
++                if matches!(v, Zval::Null) {
++                    None
++                } else {
++                    let s = convert::to_zstr_cast(v, &mut self.diags);
++                    Some(CString::new(s.as_bytes().split(|b| *b == 0).next().unwrap()).unwrap())
++                }
++            })
++            .collect();
++        validate_name(operation, &strings)?;
++        let arg = |i: usize| {
++            strings
++                .get(i)
++                .and_then(|s| s.as_ref())
++                .map_or(ptr::null(), |s| s.as_ptr().cast::<u8>())
++        };
++        let w = writer.writer;
++        // SAFETY: the arena owns w; all argument pointers borrow live CStrings.
++        let mut capture = ErrorCapture::new();
++        let result = unsafe {
++            match operation {
++                b"setIndent" => xmlTextWriterSetIndent(
++                    w,
++                    args.get(2)
++                        .map(|v| convert::to_bool(v, &mut self.diags))
++                        .unwrap_or(false) as c_int,
++                ),
++                b"startDocument" => xmlTextWriterStartDocument(w, arg(0), arg(1), arg(2)),
++                b"endDocument" => xmlTextWriterEndDocument(w),
++                b"startElement" => xmlTextWriterStartElement(w, arg(0)),
++                b"endElement" => xmlTextWriterEndElement(w),
++                b"fullEndElement" => xmlTextWriterFullEndElement(w),
++                b"writeElement" => xmlTextWriterWriteElement(w, arg(0), arg(1)),
++                b"startElementNs" => xmlTextWriterStartElementNS(w, arg(0), arg(1), arg(2)),
++                b"writeElementNs" => xmlTextWriterWriteElementNS(w, arg(0), arg(1), arg(2), arg(3)),
++                b"startAttribute" => xmlTextWriterStartAttribute(w, arg(0)),
++                b"endAttribute" => xmlTextWriterEndAttribute(w),
++                b"writeAttribute" => xmlTextWriterWriteAttribute(w, arg(0), arg(1)),
++                b"startAttributeNs" => xmlTextWriterStartAttributeNS(w, arg(0), arg(1), arg(2)),
++                b"writeAttributeNs" => {
++                    xmlTextWriterWriteAttributeNS(w, arg(0), arg(1), arg(2), arg(3))
++                }
++                b"text" => xmlTextWriterWriteString(w, arg(0)),
++                b"writeRaw" => xmlTextWriterWriteRaw(w, arg(0)),
++                b"writeComment" => xmlTextWriterWriteComment(w, arg(0)),
++                b"startComment" => xmlTextWriterStartComment(w),
++                b"endComment" => xmlTextWriterEndComment(w),
++                b"writeCdata" => xmlTextWriterWriteCDATA(w, arg(0)),
++                b"startCdata" => xmlTextWriterStartCDATA(w),
++                b"endCdata" => xmlTextWriterEndCDATA(w),
++                b"writePi" => xmlTextWriterWritePI(w, arg(0), arg(1)),
++                b"startPi" => xmlTextWriterStartPI(w, arg(0)),
++                b"endPi" => xmlTextWriterEndPI(w),
++                b"setIndentString" => xmlTextWriterSetIndentString(w, arg(0)),
++                _ => return Err(PhpError::Error("Unknown XMLWriter operation".into())),
++            }
++        };
++        let messages = std::mem::take(&mut *capture.messages);
++        drop(capture);
++        for error in messages {
++            if self.libxml_internal {
++                self.libxml_errors.push(error);
++            } else {
++                self.diags.push(php_types::Diag::Warning(format!(
++                    "XMLWriter::{}(): {}",
++                    String::from_utf8_lossy(operation),
++                    error.message.trim_end()
++                )));
++            }
++        }
++        Ok(Zval::Bool(result >= 0))
++    }
++}
+diff --git a/php-rust/crates/php-runtime/tests/xmlwriter.rs b/php-rust/crates/php-runtime/tests/xmlwriter.rs
+new file mode 100644
+--- /dev/null
++++ b/php-rust/crates/php-runtime/tests/xmlwriter.rs
+@@ -0,0 +1,46 @@
++//! Memory XMLWriter parity, captured with DDEV PHP 8.4.27 / libxml 2.9.14.
++use php_runtime::run_source;
++
++fn output(source: &str) -> String {
++    let result = run_source(b"xmlwriter.php", source.as_bytes()).expect("compiles");
++    assert!(result.fatal.is_none(), "{:?}", result.fatal);
++    String::from_utf8(result.stdout).expect("UTF-8 fixture")
++}
++
++#[test]
++fn inherited_memory_writer_escapes_and_drains() {
++    let actual = output(
++        r#"<?php
++class Writer extends XMLWriter { public function __construct() {} }
++$w = new Writer(); $w->openMemory();
++$w->startElement('root'); $w->writeAttribute('label', '"&');
++$w->writeElement('child', '<&>'); $w->endElement();
++$a = $w->outputMemory(false); echo $a, "\n";
++echo $a === $w->outputMemory() ? "same\n" : "different\n";
++echo $w->outputMemory() === '' ? "empty\n" : "not empty\n";
++$w->openMemory(); $w->writeElement('again'); echo $w->outputMemory();
++"#,
++    );
++    assert_eq!(
++        actual,
++        "<root label=\"&quot;&amp;\"><child>&lt;&amp;&gt;</child></root>\nsame\nempty\n<again/>"
++    );
++}
++
++#[test]
++fn uninitialized_writer_and_clone_are_catchable_errors() {
++    let actual = output(
++        r#"<?php
++class Child extends XMLWriter { public function __clone() { echo 'wrong'; } }
++$w = new Child();
++try { $w->outputMemory(); } catch (Error $e) { echo $e->getMessage(), "\n"; }
++$w->openMemory();
++try { $c = clone $w; } catch (Error $e) { echo $e->getMessage(), "\n"; }
++try { $w->startPi('bad name'); } catch (ValueError $e) { echo $e->getMessage(), "\n"; }
++"#,
++    );
++    assert_eq!(
++        actual,
++        "Invalid or uninitialized XMLWriter object\nTrying to clone an uncloneable object of class Child\nXMLWriter::startPi(): Argument #2 must be a valid PI target, \"bad name\" given\n"
++    );
++}

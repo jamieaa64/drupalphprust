@@ -47,6 +47,24 @@ web root, run `tests/test-session-regenerate.py URL` against both engines, and r
 that endpoint in a `finally`/shell trap. Never print cookie values. Run this while
 no browser is generating competing requests to the sequential development server.
 
+### Upstream Cargo tests with the pinned oracle
+
+```bash
+bash scripts/test-runtime-upstream.sh
+```
+
+This runs `cargo test --locked --release --no-fail-fast` inside Serena with
+`PHP_ORACLE=/opt/php-oracle/php` (PHP 8.5.7, CLI OPcache/JIT disabled). It unsets
+`PHPR_ALLOW_MISSING_ORACLE`, checks the version and defaults to one build job to
+limit linker memory use. Extra Cargo arguments can follow the script name.
+The official PHP image is digest-pinned in `runtime/serena/Dockerfile`; its source
+archive and license are retained under `/opt/php-oracle`. This is a test-only
+executable, separate from the Drupal web container's PHP and serving image.
+
+Keep both oracles: upstream language parity uses PHP 8.5.7; Drupal application
+comparisons use the site's standard DDEV PHP. The current release suite has two
+reproduced baseline guard failures; see the [XMLWriter receipt](receipts/2026-11-12-xmlwriter-memory.md).
+
 ## 3. Browser acceptance — required before upstream submission or benchmarks
 
 Use browser automation with fresh snapshots and observed controls. Use a dedicated
