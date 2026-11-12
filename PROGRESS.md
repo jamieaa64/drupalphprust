@@ -5,8 +5,8 @@ Updated: 2026-11-12
 **Installer:** Bundled DDEV add-on gives the tracker its own hostname and uses
 normal AIBP/DDEV deletion, requiring DDEV 1.25.5+. Add-on installation, rendered
 routes and native cleanup are verified in an isolated fixture; full fresh
-installation/browser acceptance remains open. Public OLI still needs minimum-version
-handling; older DDEV users currently need a manual upgrade. [Receipt](docs/receipts/2026-11-12-native-ddev-addon.md).
+installation/browser acceptance remains open. An early version check now prints user-run
+upgrade commands; DDEV’s version constraint blocks unsupported service starts. [Receipt](docs/receipts/2026-11-12-native-ddev-addon.md).
 
 **Try it and take over:** [What works, known failures and next steps](docs/TRY-IT.md). The environment can be shared while compatibility tasks remain open.
 

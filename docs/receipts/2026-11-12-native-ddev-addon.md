@@ -49,6 +49,11 @@ which is the path used by AIBP.
 
 ## Remaining acceptance and upstream prerequisite
 
+Subsequent scope: the user requested manual upgrade instructions rather than an
+automatic upgrade offer. The [early prerequisite check](2026-11-12-ddev-prerequisite.md)
+now provides those instructions with a native DDEV constraint, without an OLI
+change. The analysis below describes the earlier automatic-upgrade proposal.
+
 Full new PHP Rust build, fresh OLI installation, actual browser launch, HTTPS
 service identities, restart persistence and Coder access remain unverified for
 this revision. A `ddev launch --print-url` attempt on the stopped fixture tried

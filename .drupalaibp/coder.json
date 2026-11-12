@@ -15,6 +15,13 @@
     "Use DDEV for Composer, Drush and the standard PHP control. PHP Rust runs in the phpr service. No end-to-end compatibility or speed claim has been established."
   ],
   "hooks": {
+    "before_configure_ddev": [
+      {
+        "script": "./check-ddev-version.sh",
+        "where": "host",
+        "weight": -100
+      }
+    ],
     "before_announce_complete": [
       {
         "script": "./setup-runtime.sh",

@@ -25,7 +25,9 @@ Full parity is not required to share this experimental environment.
 The new bundled DDEV add-on requires DDEV 1.25.5+, gives the tracker its own
 hostname, and uses normal DDEV deletion hooks. See the
 [native integration receipt](receipts/2026-11-12-native-ddev-addon.md); fresh full
-installation and browser checks remain pending. Older sites are not upgraded automatically.
+installation and browser checks remain pending. Older sites are not upgraded automatically. An early project check now prints
+manual upgrade instructions and writes a native DDEV version constraint before
+the first service start; see the [prerequisite receipt](receipts/2026-11-12-ddev-prerequisite.md).
 
 Automatic local hostname registration now runs before OLI announces completion using
 actual runtime URLs and DDEV; passwords remain in the user terminal. Coder keeps

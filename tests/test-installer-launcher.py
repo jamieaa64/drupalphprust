@@ -81,6 +81,8 @@ class RuntimePortTests(unittest.TestCase):
                 (root/directory).mkdir()
             shutil.copy2(ROOT/'scripts/enable-runtime.sh',root/'scripts/enable-runtime.sh')
             shutil.copytree(ROOT/'ddev-addon',root/'ddev-addon')
+            (root/'.drupalaibp').mkdir(exist_ok=True)
+            shutil.copy2(ROOT/'.drupalaibp/check-ddev-version.sh',root/'.drupalaibp/check-ddev-version.sh')
             for name in ['require-ddev.py','configure-runtime.py']:
                 shutil.copy2(ROOT/'scripts'/name,root/'scripts'/name)
             (root/'scripts/tracker.py').write_text('print("tracker fixture")')

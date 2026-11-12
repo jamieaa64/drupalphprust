@@ -20,6 +20,8 @@ Local installation completed. Tracker landing and completion text are implemente
 - Dedicated tracker service and hostname; dynamic absolute OLI launch URL. Runtime and hostname setup run before completion.
 - Add-on installation/removal, Compose rendering and native deletion failure/success verified with isolated DDEV 1.25.5 fixture. Full fresh installation/browser checks remain open. See [receipt](../../../docs/receipts/2026-11-12-native-ddev-addon.md).
 
+- Added early DDEV version check with user-run upgrade/trust commands. Native DDEV version constraint enforces the stop before Drupal installation, because OLI hooks are best-effort. Five isolated prerequisite tests pass; see [receipt](../../../docs/receipts/2026-11-12-ddev-prerequisite.md).
+
 ## Test / finish
 
 - [x] Observe completed installation and running web/phpr services.
@@ -32,6 +34,6 @@ Local installation completed. Tracker landing and completion text are implemente
 
 ## Upstream
 
-OPEN: Public OLI accepts any installed DDEV version. A minimum-version check and upgrade offer before scaffolding are needed for existing users to avoid a manual upgrade. This upstream prerequisite improvement is identified, not implemented or submitted; native cleanup itself needs no OLI change.
+No upstream change is needed for the requested manual-upgrade guidance and native version constraint. OLI support for aborting before any scaffold is created remains optional; automatic upgrades are outside the requested behavior. Nothing submitted.
 
 [Overall plan](README.md) · [Previous](08-optional-cms-gaps.md) · [Next](10-coder-tracker.md) · [Evidence / guidance](../../../docs/USAGE.md)

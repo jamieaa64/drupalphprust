@@ -11,10 +11,18 @@ Host requirements: DDEV **1.25.5 or newer** and working Docker, Git, Bash and Py
 host because Docker builds it. Allow several minutes and enough disk/CPU for a
 Rust build. Coder freeform supplies the host; see CODER.md.
 
-Public OLI currently accepts older installed DDEV without upgrading it. Until
-its prerequisite handling is improved, upgrade DDEV before starting this project
-(on Homebrew installations: `brew upgrade ddev`). This remains an open installer
-integration issue, not a requirement users should have to discover at completion.
+The project checks DDEV before configuration and prints upgrade commands when
+it is older than 1.25.5. A native DDEV version constraint then blocks the first
+service start, before Composer installs Drupal or the PHP Rust build runs. OLI
+hooks alone only warn, so the constraint supplies the enforced stop. A small
+configuration scaffold can remain; after upgrading, rerun the original installer
+from its parent directory with a new empty destination. Existing sites are never
+removed automatically to retry.
+
+For Homebrew, run `brew upgrade ddev/ddev/ddev`. If Homebrew reports an untrusted
+formula, first run `brew trust --formula ddev/ddev/ddev`, then repeat the upgrade.
+Verify with `ddev --version`. Passwords and trust decisions stay with you. The
+project never runs an upgrade or changes Homebrew trust automatically.
 
 ## Separate source and installed projects
 
