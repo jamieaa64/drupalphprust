@@ -14,4 +14,4 @@ No valid performance result yet.
 - Reject error responses and report cache state, hardware and repetitions.
 - Compare startup and request timings separately; state exclusions.
 
-[Overall plan](README.md) · [Previous](08-fast-setup.md) · [Next](10-upstream.md) · [Evidence / guidance](../../../docs/TESTING.md)
+[Overall plan](README.md) · [Previous](08-fast-setup.md) · [Next](10-upstream.md) · [Evidence / guidance](../../../../docs/TESTING.md)

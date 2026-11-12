@@ -14,4 +14,4 @@ Standalone source, patches and handover are in place.
 - Reconstruct all 31 patches from the pinned source.
 - Run repository and secret checks; inspect a clean checkout.
 
-[Overall plan](README.md) · [Next](02-static-references.md) · [Evidence / guidance](../../../docs/receipts/2026-11-11-repository-extraction.md)
+[Overall plan](README.md) · [Next](02-static-references.md) · [Evidence / guidance](../../../../docs/receipts/2026-11-11-repository-extraction.md)

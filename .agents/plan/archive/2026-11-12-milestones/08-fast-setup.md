@@ -14,4 +14,4 @@ Prepare a reusable seed after correctness passes.
 - Restore into a fresh named project and repeat the browser checks.
 - Verify file/database identity and record each setup duration separately.
 
-[Overall plan](README.md) · [Previous](07-coder.md) · [Next](09-comparison.md) · [Evidence / guidance](../../../docs/TESTING.md)
+[Overall plan](README.md) · [Previous](07-coder.md) · [Next](09-comparison.md) · [Evidence / guidance](../../../../docs/TESTING.md)

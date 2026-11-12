@@ -14,4 +14,4 @@ Use the same installer configuration on an optional Coder host.
 - Check Zend and PHP Rust access through the workspace/tunnel.
 - Verify DDEV restart and workspace restart preserve the site.
 
-[Overall plan](README.md) · [Previous](06-local-install.md) · [Next](08-fast-setup.md) · [Evidence / guidance](../../../docs/CODER.md)
+[Overall plan](README.md) · [Previous](06-local-install.md) · [Next](08-fast-setup.md) · [Evidence / guidance](../../../../docs/CODER.md)

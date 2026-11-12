@@ -14,4 +14,4 @@ Config is prepared; the interactive install is not yet verified.
 - Check the runtime-ready marker and both DDEV services.
 - Verify generated site files, database access and stop/start persistence.
 
-[Overall plan](README.md) · [Previous](05-regressions.md) · [Next](07-coder.md) · [Evidence / guidance](../../../docs/USAGE.md)
+[Overall plan](README.md) · [Previous](05-regressions.md) · [Next](07-coder.md) · [Evidence / guidance](../../../../docs/USAGE.md)

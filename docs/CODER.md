@@ -90,3 +90,6 @@ Check both services, login response content, restart persistence and private
 access. A local install does not prove Coder routing or full Drupal compatibility.
 The earlier experiment used a standalone server container on an old workspace;
 those receipts do not certify this DDEV service or this freeform setup.
+
+For the proposed private workspace button and server lifecycle work, see
+[Tracker in Coder](CODER-TRACKER.md). This integration is not deployed yet.

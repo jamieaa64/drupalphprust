@@ -91,3 +91,9 @@ it meets the maintainer's own quality bar.
 
 The user authenticates and pushes. Prepare exact commands and reviewable commits;
 do not submit through an API to bypass that preference.
+
+## Agent work queue
+
+The [current plan](../.agents/plan/current/README.md) assigns each patch below to
+one implementation/contribution task. Local patched status does not imply upstream
+readiness; each task includes remaining work and acceptance checks.

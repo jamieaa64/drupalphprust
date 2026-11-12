@@ -4,7 +4,7 @@ import argparse, json, re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
-STATUSES = {'done', 'active', 'blocked', 'pending'}
+STATUSES = {'done', 'active', 'blocked', 'pending', 'patched', 'deferred'}
 
 def snapshot(root=ROOT):
     files = [root/'PROGRESS.md', *sorted((root/'.agents/plan').rglob('*.md')), *sorted((root/'docs').rglob('*.md'))]
@@ -16,8 +16,8 @@ def snapshot(root=ROOT):
         if not status or status[1] not in STATUSES:
             raise ValueError(f'Invalid or missing status: {path}')
         steps.append({'path':path,'title':content.splitlines()[0].removeprefix('# '),'status':status[1]})
-    if len(steps)!=10:
-        raise ValueError('Expected ten step documents')
+    if not steps:
+        raise ValueError('Expected at least one task document')
     return {'pages':pages,'steps':steps}
 
 def html(data):

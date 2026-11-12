@@ -14,4 +14,4 @@ Prepare discrete contributions; submit only after E2E and user approval.
 - Reconstruct each proposed patch set and run the relevant upstream gates.
 - Review scope, licensing, evidence and remaining limitations before submission.
 
-[Overall plan](README.md) · [Previous](09-comparison.md) · [Evidence / guidance](../../../docs/UPSTREAM.md)
+[Overall plan](README.md) · [Previous](09-comparison.md) · [Evidence / guidance](../../../../docs/UPSTREAM.md)

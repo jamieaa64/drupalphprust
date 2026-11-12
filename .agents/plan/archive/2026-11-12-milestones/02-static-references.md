@@ -14,4 +14,4 @@ Views reference binding and finally handling pass regression checks.
 - Compare the static-property-reference probe with Zend.
 - Verify finally executes and the returned alias still mutates its source.
 
-[Overall plan](README.md) · [Previous](01-repository.md) · [Next](03-runtime.md) · [Evidence / guidance](../../../docs/receipts/2026-11-12-static-property-reference.md)
+[Overall plan](README.md) · [Previous](01-repository.md) · [Next](03-runtime.md) · [Evidence / guidance](../../../../docs/receipts/2026-11-12-static-property-reference.md)

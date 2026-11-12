@@ -9,14 +9,30 @@ tracker=importlib.util.module_from_spec(spec);spec.loader.exec_module(tracker)
 class TrackerTests(unittest.TestCase):
     def test_each_step_has_work_tests_and_resolving_links(self):
         data=tracker.snapshot()
-        self.assertEqual(len(data['steps']),10)
+        self.assertGreater(len(data['steps']),0)
         for step in data['steps']:
             text=data['pages'][step['path']]
             self.assertIn('## Work',text)
             self.assertIn('## Test / finish',text)
-            self.assertLess(len(text.split()),160)
+            self.assertLess(len(text.split()),220)
+            self.assertIn('## Upstream',text)
+            self.assertIn('Destination: ',text)
             for link in re.findall(r'\]\(([^)]+)\)',text):
                 self.assertTrue((ROOT/step['path']).parent.joinpath(link).resolve().is_file(),link)
+    def test_each_runtime_patch_has_one_task_owner(self):
+        data=tracker.snapshot()
+        assigned=[]
+        for step in data['steps']:
+            text=data['pages'][step['path']]
+            match=re.search(r'^Patches: (.*)$',text,re.M)
+            if match: assigned.extend(match[1].split(', '))
+        series=(ROOT/'runtime/series').read_text().splitlines()
+        self.assertCountEqual(assigned,series)
+        self.assertEqual(len(assigned),len(set(assigned)))
+    def test_snapshot_refresh_preserves_coder_proxy_prefix(self):
+        template=(ROOT/'scripts/tracker-template.html').read_text()
+        self.assertIn("fetch('./snapshot'",template)
+        self.assertNotIn("fetch('/snapshot'",template)
     def test_script_closing_text_remains_inert_json(self):
         data={'pages':{'test.md':'</script><script>alert(1)</script>'},'steps':[]}
         rendered=tracker.html(data)

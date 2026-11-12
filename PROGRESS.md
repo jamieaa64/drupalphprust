@@ -2,10 +2,8 @@
 
 Updated: 2026-11-12
 
-**Now:** Fix Fiber suspension inside a Generator. Local installer verification can run alongside it.
+**Now:** Fix Fiber / Generator suspension; finish portable installation and Coder tracker integration.
 
-**Verified:** 31 patches reconstruct; 29 runtime probes and 8 setup checks pass.
+**Patched locally:** PDO MySQL, iterators, class loading, references, rendering and sessions. No upstream submissions yet.
 
-**Still unverified:** Complete Drupal rendering, local/Coder installation and performance comparisons.
-
-[Overall plan](.agents/plan/current/README.md) · [Tracker help](docs/TRACKER.md)
+**Evidence:** 31 patches reconstruct; 29 runtime probes pass. Full Drupal behavior, fresh installation and speed comparisons remain unverified.

@@ -14,4 +14,4 @@ Status: pending
 - Require matching expected output and empty unexpected stderr.
 - Run focused tests for new fixes, then the combined suite.
 
-[Overall plan](README.md) · [Previous](04-browser.md) · [Next](06-local-install.md) · [Evidence / guidance](../../../docs/TESTING.md)
+[Overall plan](README.md) · [Previous](04-browser.md) · [Next](06-local-install.md) · [Evidence / guidance](../../../../docs/TESTING.md)

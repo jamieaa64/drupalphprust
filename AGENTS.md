@@ -15,8 +15,10 @@ Working rules:
 
 - Keep `.agents/plan/current`, `archive` and `future`. Archive a completed/superseded
   plan with its result; do not turn historical investigation notes into current facts.
-- Keep `PROGRESS.md` short. Update the relevant numbered step in `.agents/plan/current/`
-  after meaningful verified progress; each step owns its status, work and tests.
+- Keep `PROGRESS.md` short. Update the relevant numbered task in `.agents/plan/current/`
+  after meaningful verified progress; each task owns its status, work and tests.
+  Track implementation and contribution work, with tests inside each task. Distinguish
+  patched locally from upstream submission; keep every runtime patch assigned to a task.
   Regenerate `tracker.html` with `python3 scripts/tracker.py` after Markdown changes
   under PROGRESS.md, docs/ or .agents/plan/. The live preview reads those files directly.
 - Update the current plan after meaningful verified progress.
