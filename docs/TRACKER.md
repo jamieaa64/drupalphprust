@@ -39,3 +39,16 @@ standalone HTML therefore embeds a generated snapshot; the optional local server
 reads the same Markdown live. No file-picker permissions or browser exceptions.
 
 [Overall plan](../.agents/plan/current/README.md) · [Progress](../PROGRESS.md)
+
+## Installed landing page
+
+OLI opens `/project-tracker/`, a generated snapshot served by DDEV web. Prominent
+links read `.ddev/.runtime-urls`; timestamped service status is separate from
+runtime compatibility. Portable Git snapshots contain no installation metadata.
+No dotenv file, credentials or complete DDEV response is embedded.
+
+Use `python3 scripts/tracker.py --install` to refresh service status and publish.
+Normal regeneration updates Markdown in an already managed installed page too.
+`--serve` retains the live Markdown view; use `--port 8766` if 8765 is occupied.
+Coder private routes/tunnels remain necessary; local URLs are not assumed to be
+accessible outside the workspace.

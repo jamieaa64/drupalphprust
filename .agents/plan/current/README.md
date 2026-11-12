@@ -26,8 +26,10 @@ Upstream status is separate: not submitted, prepared, submitted, then merged
 13. [Work out upstream submission process](13-upstream-process.md)
 14. [Benefits now versus Drupal changes](14-drupal-opportunities.md)
 15. [Partial HTTP request handling](15-http-partial-requests.md)
+16. [Implement XMLWriter for out-of-box Drupal CMS](16-xmlwriter.md)
 
-Resolve Fiber/Generator suspension first; installer and Coder integration can
+The fresh installation first fails on missing XMLWriter (task 16); the earlier
+scoped Fiber/Generator blocker remains open. Installer and Coder integration can
 progress independently. Validate homepage, login, create, edit and view after
 runtime fixes. That journey checks compatibility; it is not the project's purpose.
 Prepare independent upstream changes along the way, submit only after end-to-end

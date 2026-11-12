@@ -2,9 +2,9 @@
 
 ## Status and prerequisites
 
-The config/hook/service wiring is prepared; a complete One Line Installer run has
-not been performed for this repository. The user deferred the broad installer test
-matrix. Start with the smoke test below when returning to provisioning work.
+A local installation completed on 12 November 2026. Updated tracker launch and
+completion stages were verified separately; a fresh install of the updated config
+and Coder acceptance remain untested. See [receipt](receipts/2026-11-12-tracker-landing.md).
 
 Host requirements: working DDEV/Docker, Git, Bash and Python 3; One Line Installer
 2.x with config-source and late-hook support. No Rust toolchain is needed on the
@@ -168,3 +168,17 @@ Check TLS and Drupal trusted-host settings on the installed site. Use separate
 browser contexts for the two runtimes; application cookie settings may span hosts.
 
 Routing uses DDEV's documented [custom service hostnames](https://docs.ddev.com/en/stable/users/extend/custom-compose-files/).
+
+## Tracker landing page
+
+OLI opens `/project-tracker/` on the standard-PHP DDEV host. The final message
+lists the tracker and both runtime sites using actual installation metadata.
+`python3 scripts/tracker.py --install` publishes the page and refreshes timestamped
+service status; `--message` prints the three URLs. Normal tracker regeneration
+also refreshes Markdown in any managed installed copy. An unrelated existing
+`web/project-tracker` directory is never overwritten.
+
+If a named runtime hostname fails DNS, the user can run
+`ddev hostname HOST 127.0.0.1` for each hostname in `.ddev/.runtime-urls`.
+DDEV may request an administrator password. Do not add the Rust hostname to
+`additional_hostnames`, which would route it to standard PHP.

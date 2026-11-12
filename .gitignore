@@ -48,3 +48,10 @@
 
 # Generated runtime URL receipt
 .ddev/.runtime-urls
+.ddev/.env
+# drupal/ai_best_practices: per-developer settings, see its README
+/ai_best_practices.yaml
+# Generated tracker installation metadata and staged OLI hooks.
+.ddev/.tracker-status.json
+/setup-tracker.sh
+/tracker-message.sh

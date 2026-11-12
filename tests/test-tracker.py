@@ -7,6 +7,26 @@ spec=importlib.util.spec_from_file_location('tracker',ROOT/'scripts/tracker.py')
 tracker=importlib.util.module_from_spec(spec);spec.loader.exec_module(tracker)
 
 class TrackerTests(unittest.TestCase):
+    def test_runtime_urls_reject_credentials_and_non_base_paths(self):
+        for url in ['https://user:secret@example.com/', 'https://example.com/?token=secret',
+                    'javascript:alert(1)', 'https://example.com/user/reset/secret',
+                    'https://example.com/#secret']:
+            with self.assertRaises(ValueError): tracker.safe_url(url)
+        self.assertEqual(tracker.safe_url('https://php.example.test:8443'),
+                         'https://php.example.test:8443/')
+
+    def test_installation_reads_only_allowlisted_metadata(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp); (root/'.ddev').mkdir()
+            (root/'.ddev/.runtime-urls').write_text('Standard PHP (Zend): https://php.example.test/\nPHP RUST: https://rust.example.test/\nPassword: secret-canary\n')
+            (root/'.ddev/.env').write_text('PASSWORD=secret-canary')
+            (root/'.ddev/.tracker-status.json').write_text(json.dumps({'checked':'today',
+                'password':'secret-canary','services':{'web':'running','phpr':'stopped','db':'secret-canary'}}))
+            data=tracker.installation(root)
+            self.assertEqual(data['services'],{'web':'running','phpr':'stopped'})
+            self.assertNotIn('secret-canary',json.dumps(data))
+            self.assertEqual(data['urls']['rust'],'https://rust.example.test/')
+
     def test_each_step_has_work_tests_and_resolving_links(self):
         data=tracker.snapshot()
         self.assertGreater(len(data['steps']),0)

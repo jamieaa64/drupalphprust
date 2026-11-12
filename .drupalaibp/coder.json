@@ -9,7 +9,7 @@
   "agents": [],
   "skills": [],
   "extra_scripts": [],
-  "launch_path": "/",
+  "launch_path": "/project-tracker/",
   "agents_md": [
     "This is the drupalphprust runtime compatibility project, not a migration agent. Read AGENTS.md and .agents/plan/current/README.md before work.",
     "Use DDEV for Composer, Drush and the standard PHP control. PHP Rust runs in the phpr service. No end-to-end compatibility or speed claim has been established."
@@ -21,12 +21,22 @@
         "where": "host",
         "weight": 50
       }
+    ],
+    "before_launch_site": [
+      {
+        "script": "./setup-tracker.sh",
+        "where": "host",
+        "weight": 50
+      }
+    ],
+    "before_agent_handoff": [
+      {
+        "script": "./tracker-message.sh",
+        "where": "host",
+        "weight": 50
+      }
     ]
   },
-  "append_welcome_text": [
-    "PHP Rust is experimental. Check .ddev/.runtime-ready and the phpr service; installer completion alone is not runtime acceptance.",
-    "Two runtimes: php.<project-host> is standard PHP; rust.<project-host> is PHP RUST. Exact URLs: .ddev/.runtime-urls. Coder needs its private routing/tunnel; see docs/CODER.md."
-  ],
   "weight": 10,
   "questions": [
     {
@@ -40,5 +50,10 @@
       "default": "local",
       "value": "coder"
     }
+  ],
+  "replace_welcome_text": [
+    "Service availability does not certify Drupal compatibility. PHP Rust remains experimental; use the project tracker for evidence and remaining work.",
+    "Reopen the tracker: ddev launch /project-tracker/",
+    "Coder: use your existing private workspace routes or tunnels; local DDEV URLs are not public workspace URLs."
   ]
 }

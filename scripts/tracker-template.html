@@ -3,8 +3,10 @@
 <title>Drupal PHP Rust · Progress</title>
 <style>
 :root{font-family:system-ui,-apple-system,sans-serif;color:#23333d;background:#f4f6f5;font-size:14px}*{box-sizing:border-box}body{margin:0}main{max-width:1080px;margin:auto;padding:32px 24px}header{display:flex;justify-content:space-between;gap:20px;align-items:center}h1{font-size:25px;margin:0 0 6px;letter-spacing:-.7px}h2{font-size:17px;margin:25px 0 10px}p{line-height:1.65;margin:9px 0}a{color:#116d67;text-underline-offset:3px}button{font:inherit;cursor:pointer}header p,.muted{color:#66777d;font-size:12px}.count{background:#e3ece7;color:#335f4b;padding:7px 12px;border-radius:20px;white-space:nowrap}#summary{margin:20px 0;background:#fff;border:1px solid #dce4e0;border-left:4px solid #4f8b75;border-radius:10px;padding:14px 20px}#summary h1{display:none}#summary p{font-size:13px;margin:6px 0}#summary p:last-child{margin-top:10px}.layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:20px}nav{display:flex;flex-direction:column;gap:5px}nav button{border:1px solid transparent;border-radius:8px;background:transparent;text-align:left;padding:11px 12px;display:flex;gap:10px;align-items:center;color:inherit}nav button:hover{background:#eaf0ec}nav button[aria-current=true]{background:#fff;border-color:#a9c7b9;box-shadow:0 2px 5px #263c3010}.dot{width:8px;height:8px;border-radius:50%;background:#bac5ca;flex:none}.dot.patched{background:#478666}.dot.partial{background:#c38334}.dot.deferred{background:#aaa}.dot.done{background:#478666}.dot.active{background:#2e7cba}.dot.blocked{background:#c38334}.step-title{flex:1;font-size:13px}.tag{font-size:10px;color:#68777f;text-transform:uppercase;letter-spacing:.4px}article{background:#fff;border:1px solid #dce4e0;border-radius:12px;padding:25px 28px;min-height:340px}article h1{font-size:21px;line-height:1.4}article li{margin:8px 0;line-height:1.55}article ul{padding-left:20px}article code{font-size:12px;background:#f0f4f2;padding:2px 5px;border-radius:4px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f0f4f2;padding:14px;border-radius:6px;font-size:12px;line-height:1.6}footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:20px;font-size:12px;color:#728078}footer button{border:0;background:none;padding:0;color:#116d67;text-decoration:underline;text-underline-offset:3px}:focus-visible{outline:3px solid #70aaa1;outline-offset:3px}@media(max-width:700px){main{padding:20px 14px}.layout{grid-template-columns:1fr}nav{display:grid;grid-template-columns:1fr 1fr}nav button{padding:9px 7px}.tag{display:none}article{padding:20px}header{align-items:flex-start}h1{font-size:23px}}
+.runtime-links{display:flex;flex-wrap:wrap;gap:14px;margin:22px 0}.runtime-card{flex:1;min-width:260px;background:white;border:1px solid #a9c7b9;border-radius:10px;padding:18px}.runtime-card a{display:block;font-size:18px;font-weight:650;margin-bottom:12px}.runtime-card p{font-size:13px}.runtime-card strong{display:block}
 </style></head><body><main>
 <header><div><h1>Drupal on PHP Rust</h1><p>A small view of the work ahead.</p></div><span class="count" id="count"></span></header>
+<section id="runtimes" class="runtime-links" aria-label="Installed runtime sites"></section>
 <section id="summary" aria-label="Current progress"></section>
 <div class="layout"><nav id="steps" aria-label="Agent tasks"></nav><article id="detail" aria-live="polite"></article></div>
 <footer><span id="mode"></span><span><button data-doc=".agents/plan/current/README.md">Overall plan</button> · <button data-doc=".agents/plan/future/README.md">Future</button> · <button data-doc=".agents/plan/archive/README.md">Archive</button> · <button data-doc="docs/TRACKER.md">Help</button></span></footer>
@@ -14,7 +16,7 @@
 let data=JSON.parse(document.getElementById('snapshot').textContent);
 let current=decodeURIComponent(location.hash.slice(1))||(data.steps.find(s=>s.status==='active')||data.steps[0]).path;
 let signature=JSON.stringify(data);
-const live=location.protocol==='http:'||location.protocol==='https:';
+const live=data.live===true;
 function resolve(base,path){return new URL(path,new URL(base,'https://tracker.invalid/')).pathname.slice(1);}
 function inline(parent,text,path){
  const pattern=/(`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g;let start=0;
@@ -47,6 +49,17 @@ function markdown(container,text,path){
  flush();if(code)container.append(code);
 }
 function draw(){
+ const runtimes=document.getElementById('runtimes');runtimes.replaceChildren();
+ for(const [key,service,label] of [['php','web','Drupal on standard PHP'],['rust','phpr','Drupal on PHP Rust']]){
+  const card=document.createElement('div');card.className='runtime-card';
+  const url=data.installation?.urls?.[key];
+  const link=document.createElement(url?'a':'strong');link.textContent=label;
+  if(url){link.href=url;link.target='_blank';link.rel='noopener noreferrer';}card.append(link);
+  const status=document.createElement('p');status.textContent='Service: '+(data.installation?.services?.[service]||'not checked');card.append(status);
+  const compatibility=document.createElement('p');compatibility.textContent=key==='rust'?'Runtime compatibility: experimental; full Drupal journey not verified.':'Runtime compatibility: standard PHP control; full journey not verified here.';card.append(compatibility);
+  const checked=document.createElement('p');checked.className='muted';checked.textContent=url?'Service check: '+data.installation.checked:'Site links appear after installation.';card.append(checked);runtimes.append(card);
+ }
+
  if(!data.pages[current])current=(data.steps.find(s=>s.status==='active')||data.steps[0]).path;
  document.getElementById('count').textContent=data.steps.filter(s=>s.status==='active').length+' active · '+data.steps.filter(s=>s.status==='patched').length+' patched';
  markdown(document.getElementById('summary'),data.pages['PROGRESS.md'],'PROGRESS.md');
