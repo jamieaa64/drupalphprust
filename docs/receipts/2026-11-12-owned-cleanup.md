@@ -1,5 +1,7 @@
 # Scoped project cleanup — 12 November 2026
 
+Historical approach: superseded by [native DDEV add-on cleanup](2026-11-12-native-ddev-addon.md). The custom delete wrapper and unsubmitted OLI patch were removed.
+
 ## Cause and owning components
 
 The public One Line Installer delete implementation was inspected from the

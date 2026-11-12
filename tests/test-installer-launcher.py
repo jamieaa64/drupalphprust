@@ -80,13 +80,25 @@ class RuntimePortTests(unittest.TestCase):
             for directory in ['scripts','runtime','.ddev','web','bin']:
                 (root/directory).mkdir()
             shutil.copy2(ROOT/'scripts/enable-runtime.sh',root/'scripts/enable-runtime.sh')
-            shutil.copy2(ROOT/'runtime/docker-compose.phpr.yaml',root/'runtime/docker-compose.phpr.yaml')
+            shutil.copytree(ROOT/'ddev-addon',root/'ddev-addon')
+            for name in ['require-ddev.py','configure-runtime.py']:
+                shutil.copy2(ROOT/'scripts'/name,root/'scripts'/name)
+            (root/'scripts/tracker.py').write_text('print("tracker fixture")')
             (root/'.ddev/config.yaml').write_text('name: fixture\n')
             (root/'web/.ht.router.php').write_text('<?php')
             for name in ['docker','ddev']:
                 f=root/'bin'/name
                 body='#!/bin/sh\nexit 0\n'
-                if name=='ddev': body='#!/bin/sh\nif [ "$1" = describe ]; then echo \'{"raw":{"primary_url":"https://fixture.ddev.site"}}\'; fi\n'
+                if name=='ddev': body="""#!/usr/bin/env python3
+import json,sys,shutil,subprocess
+from pathlib import Path
+if sys.argv[1]=='--version': print('ddev version v1.25.5')
+elif sys.argv[1]=='describe': print(json.dumps({'raw':{'primary_url':'https://fixture.ddev.site','name':'fixture'}}))
+elif sys.argv[1]=='add-on':
+    for name in ['docker-compose.phpr.yaml','config.php-rust-lifecycle.yaml']:
+        shutil.copy2(Path('ddev-addon')/name,Path('.ddev')/name)
+    subprocess.run(['python3','scripts/configure-runtime.py','--render'],check=True)
+"""
                 f.write_text(body); f.chmod(0o755)
             env=dict(os.environ,PATH=str(root/'bin')+os.pathsep+os.environ['PATH'])
             env.pop('PHPR_HTTP_PORT',None)
@@ -99,7 +111,10 @@ class RuntimePortTests(unittest.TestCase):
             self.assertIn('VIRTUAL_HOST: "rust.fixture.ddev.site"',service.read_text())
             self.assertIn('HTTPS_EXPOSE: "443:8090"',service.read_text())
             self.assertEqual((root/'.ddev/.runtime-urls').read_text(),
-                'Standard PHP (Zend): https://php.fixture.ddev.site/\nPHP RUST: https://rust.fixture.ddev.site/\n')
+                'Standard PHP (Zend): https://php.fixture.ddev.site/\nPHP RUST: https://rust.fixture.ddev.site/\nProject tracker: https://tracker.fixture.ddev.site/\n')
+            self.assertIn('debian:bookworm-slim-${DDEV_SITENAME}-phpr-built',service.read_text())
+            self.assertIn('tracker.fixture.ddev.site',service.read_text())
+            self.assertIn('pre-delete:',(root/'.ddev/config.php-rust-lifecycle.yaml').read_text())
             service.write_text('# user owned\n')
             result=subprocess.run(command,env=env,capture_output=True)
             self.assertNotEqual(result.returncode,0)

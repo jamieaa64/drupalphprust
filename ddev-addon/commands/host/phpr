@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
+#ddev-generated
 ## Description: Run PHP Rust CLI in the comparison service
 ## Usage: phpr [arguments]
-## Example: ddev phpr --version
+## Example: ddev phpr tests/probes/fiber-generator-suspend.php
 set -euo pipefail
 ddev exec -s phpr phpr "$@"

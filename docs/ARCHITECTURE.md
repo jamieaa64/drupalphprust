@@ -6,19 +6,22 @@
 One Line Installer + this repository's .drupalaibp config
   -> DDEV creates Drupal CMS Starter with Composer/Drush on standard PHP
   -> source overlay supplies runtime patches, tools, docs and plans
-  -> late host hook builds the pinned runtime image and enables DDEV phpr service
+  -> late host hook installs the bundled add-on; DDEV builds the project runtime image
        |-- web: nginx/PHP-FPM (standard PHP control, Composer and Drush)
        |-- db: MariaDB
-       `-- phpr: PHP Rust development HTTP server + CLI
+       |-- phpr: PHP Rust development HTTP server + CLI
+       `-- tracker: static tracker on tracker.<project-host>
 ```
 
 The root `.ddev/config.yaml` belongs to the installer/generated project and is
 ignored. The tracked `.ddev/config.php-rust.yaml` is a small version overlay;
 it does not replace project names, Coder routing or other generated settings.
-The service template is stored in `runtime/` and only installed into `.ddev/`
-after the image exists, avoiding a missing-image failure on the installer's first
-`ddev start`. `scripts/enable-runtime.sh` refuses to overwrite an unowned service
-file and retains standard PHP as the default web service.
+The bundled `ddev-addon/` supplies services, host commands and a native
+pre-delete hook (DDEV 1.25.5+). It is installed after Drupal scaffolding. DDEV
+builds PHP Rust from `runtime/Dockerfile`, with a project-specific image tag and
+Compose ownership labels. Standard PHP remains the default web service.
+The static tracker has no PHP interpreter or database configuration and mounts
+only generated tracker content. OLI reads its exact URL through `LAUNCH_PATH`.
 
 PHP Rust reads the same project volume and database as Zend. This is useful for
 correctness diagnosis, but shared caches contaminate an independent performance

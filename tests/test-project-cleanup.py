@@ -26,19 +26,6 @@ class CleanupTests(unittest.TestCase):
             def fail(args,check):raise subprocess.CalledProcessError(1,args)
             with self.assertRaises(subprocess.CalledProcessError):module.cleanup(root,fail)
             self.assertEqual(json.loads(p.read_text())['hosts'],['mine.test'])
-    def test_delete_wrapper_confirmation_and_failure_boundaries(self):
-        for answer,fail_cleanup,fail_ddev in [('NO',False,False),('DELETE',True,False),('DELETE',False,True),('DELETE',False,False)]:
-            with self.subTest(answer=answer,fail_cleanup=fail_cleanup,fail_ddev=fail_ddev), tempfile.TemporaryDirectory() as tmp:
-                root=Path(tmp);(root/'scripts').mkdir();(root/'.ddev').mkdir();(root/'bin').mkdir()
-                (root/'.ddev/config.yaml').touch()
-                shutil.copy2(ROOT/'scripts/delete-project.sh',root/'scripts/delete-project.sh')
-                (root/'scripts/cleanup-project.py').write_text('from pathlib import Path\nPath("cleaned").touch()\nraise SystemExit('+str(int(fail_cleanup))+')\n')
-                stub=root/'bin/ddev';stub.write_text('#!/bin/sh\ntouch deleted\nexit '+str(int(fail_ddev))+'\n');stub.chmod(0o755)
-                result=subprocess.run(['bash',str(root/'scripts/delete-project.sh')],input=answer+'\n',text=True,capture_output=True,env=dict(os.environ,PATH=str(root/'bin')+os.pathsep+os.environ['PATH']))
-                self.assertTrue(root.exists())
-                self.assertEqual((root/'deleted').exists(),answer=='DELETE' and not fail_cleanup)
-                self.assertEqual(result.returncode==0,answer=='DELETE' and not fail_cleanup and not fail_ddev)
-
     def test_tracker_lifecycle_is_scoped_to_checkout(self):
         with tempfile.TemporaryDirectory() as tmp:
             processes=[];roots=[]

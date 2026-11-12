@@ -14,7 +14,7 @@ class HostnameTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
         self.root=Path(self.tmp.name);(self.root/'.ddev').mkdir()
-        (self.root/'.ddev/.runtime-urls').write_text('Standard PHP (Zend): https://php.custom.test:8443/\nPHP RUST: https://rust.custom.test:8443/\n')
+        (self.root/'.ddev/.runtime-urls').write_text('Standard PHP (Zend): https://php.custom.test:8443/\nPHP RUST: https://rust.custom.test:8443/\nProject tracker: https://tracker.custom.test:8443/\n')
         self.calls=[];self.resolved=set()
     def resolve(self,host):
         if host not in self.resolved: raise socket_error()
@@ -24,9 +24,9 @@ class HostnameTests(unittest.TestCase):
     def status(self):return json.loads((self.root/'.ddev/.runtime-network.json').read_text())['status']
     def test_registers_actual_hosts_and_second_run_is_idempotent(self):
         self.assertEqual(module.register(self.root,self.run_ddev,self.resolve),0)
-        self.assertEqual(self.calls,[['ddev','hostname','php.custom.test','127.0.0.1'],['ddev','hostname','rust.custom.test','127.0.0.1']])
+        self.assertEqual(self.calls,[['ddev','hostname','php.custom.test','127.0.0.1'],['ddev','hostname','rust.custom.test','127.0.0.1'],['ddev','hostname','tracker.custom.test','127.0.0.1']])
         self.assertEqual(module.register(self.root,self.run_ddev,self.resolve),0)
-        self.assertEqual(len(self.calls),2);self.assertEqual(self.status(),'ready')
+        self.assertEqual(len(self.calls),3);self.assertEqual(self.status(),'ready')
     def test_coder_does_not_change_host_dns(self):
         (self.root/'.ddev/.runtime-target').write_text('coder')
         self.assertEqual(module.register(self.root,self.run_ddev,self.resolve),0)

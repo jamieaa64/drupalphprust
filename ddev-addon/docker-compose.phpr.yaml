@@ -1,0 +1,45 @@
+#ddev-generated
+# Installed and removed by the bundled php-rust DDEV add-on.
+services:
+  web:
+    environment:
+      VIRTUAL_HOST: "${DDEV_HOSTNAME},__PHP_HOST__"
+  phpr:
+    image: debian:bookworm-slim-${DDEV_SITENAME}-phpr-built
+    build:
+      context: "${DDEV_APPROOT}/runtime"
+      dockerfile: Dockerfile
+      args:
+        RUNTIME_PROFILE: __RUNTIME_PROFILE__
+    container_name: ddev-${DDEV_SITENAME}-phpr
+    working_dir: /var/www/html
+    environment:
+      IS_DDEV_PROJECT: "true"
+      VIRTUAL_HOST: "__PHPR_HOST__"
+      HTTP_EXPOSE: "80:8090"
+      HTTPS_EXPOSE: "443:8090"
+    volumes:
+      - "${DDEV_APPROOT}:/var/www/html"
+    expose:
+      - "8090"
+    ports:
+      - "127.0.0.1:${PHPR_HTTP_PORT:-18090}:8090"
+    labels:
+      com.ddev.site-name: "${DDEV_SITENAME}"
+      com.ddev.approot: "${DDEV_APPROOT}"
+    command: ["php-server", "--host", "0.0.0.0", "--port", "8090", "--docroot", "/var/www/html/web", "/var/www/html/web/.ht.router.php"]
+  tracker:
+    image: python:3.13-alpine
+    container_name: ddev-${DDEV_SITENAME}-tracker
+    environment:
+      VIRTUAL_HOST: "__TRACKER_HOST__"
+      HTTP_EXPOSE: "80:8080"
+      HTTPS_EXPOSE: "443:8080"
+    volumes:
+      - "${DDEV_APPROOT}/.ddev/.tracker:/tracker:ro"
+    expose:
+      - "8080"
+    labels:
+      com.ddev.site-name: "${DDEV_SITENAME}"
+      com.ddev.approot: "${DDEV_APPROOT}"
+    command: ["python", "-m", "http.server", "8080", "--bind", "0.0.0.0", "--directory", "/tracker"]

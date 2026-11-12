@@ -22,7 +22,12 @@ currently fails on PHP Rust with missing XMLWriter, owned by active task 16.
 The Fiber/Generator result below comes from the earlier reduced-feature site.
 Full parity is not required to share this experimental environment.
 
-Automatic local hostname registration now runs in the OLI pre-launch hook using
+The new bundled DDEV add-on requires DDEV 1.25.5+, gives the tracker its own
+hostname, and uses normal DDEV deletion hooks. See the
+[native integration receipt](receipts/2026-11-12-native-ddev-addon.md); fresh full
+installation and browser checks remain pending. Older sites are not upgraded automatically.
+
+Automatic local hostname registration now runs before OLI announces completion using
 actual runtime URLs and DDEV; passwords remain in the user terminal. Coder keeps
 private routes/tunnels. No Rust language fix was made in this installer change.
 

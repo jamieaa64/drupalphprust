@@ -29,6 +29,8 @@ for events in c['hooks'].values():
         assert (root/'.drupalaibp'/hook['script']).is_file()
 for folder in ['scripts','tests','.drupalaibp']:
     for file in (root/folder).rglob('*.sh'): subprocess.run(['bash','-n',str(file)],check=True)
+for file in (root/'ddev-addon/commands/host').iterdir():
+    subprocess.run(['bash','-n',str(file)],check=True)
 for name in ['current','archive','future']:
     assert (root/'.agents/plan'/name/'README.md').is_file()
 print(f'PASS: {len(series)} patch hashes/order, installer structure, shell syntax and plan folders.')

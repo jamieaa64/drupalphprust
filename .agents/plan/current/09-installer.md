@@ -16,7 +16,9 @@ Local installation completed. Tracker landing and completion text are implemente
 - Use OLI launch_path, replacement welcome text and existing hooks; no upstream installer change needed.
 - Preserve Markdown navigation and live preview; installed URLs/status remain credential-free.
 
-- Pair setup with owned-alias cleanup and tracker shutdown. Current AIBP needs the explicit cleanup command until the prepared upstream hook is released; see [cleanup](../../../docs/CLEANUP.md).
+- Bundled `php-rust` add-on uses native pre-delete on DDEV 1.25.5+: ordinary AIBP deletion releases owned aliases and previews. DDEV builds a project-scoped image. No bespoke delete command or upstream patch is needed.
+- Dedicated tracker service and hostname; dynamic absolute OLI launch URL. Runtime and hostname setup run before completion.
+- Add-on installation/removal, Compose rendering and native deletion failure/success verified with isolated DDEV 1.25.5 fixture. Full fresh installation/browser checks remain open. See [receipt](../../../docs/receipts/2026-11-12-native-ddev-addon.md).
 
 ## Test / finish
 
@@ -30,6 +32,6 @@ Local installation completed. Tracker landing and completion text are implemente
 
 ## Upstream
 
-Project work belongs here; send only proven generic defects to their owning upstream.
+OPEN: Public OLI accepts any installed DDEV version. A minimum-version check and upgrade offer before scaffolding are needed for existing users to avoid a manual upgrade. This upstream prerequisite improvement is identified, not implemented or submitted; native cleanup itself needs no OLI change.
 
 [Overall plan](README.md) · [Previous](08-optional-cms-gaps.md) · [Next](10-coder-tracker.md) · [Evidence / guidance](../../../docs/USAGE.md)

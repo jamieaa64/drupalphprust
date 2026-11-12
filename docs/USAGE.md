@@ -6,10 +6,15 @@ A local installation completed on 12 November 2026. Updated tracker launch and
 completion stages were verified separately; a fresh install of the updated config
 and Coder acceptance remain untested. See [receipt](receipts/2026-11-12-tracker-landing.md).
 
-Host requirements: working DDEV/Docker, Git, Bash and Python 3; One Line Installer
+Host requirements: DDEV **1.25.5 or newer** and working Docker, Git, Bash and Python 3; One Line Installer
 2.x with config-source and late-hook support. No Rust toolchain is needed on the
 host because Docker builds it. Allow several minutes and enough disk/CPU for a
 Rust build. Coder freeform supplies the host; see CODER.md.
+
+Public OLI currently accepts older installed DDEV without upgrading it. Until
+its prerequisite handling is improved, upgrade DDEV before starting this project
+(on Homebrew installations: `brew upgrade ddev`). This remains an open installer
+integration issue, not a requirement users should have to discover at completion.
 
 ## Separate source and installed projects
 
@@ -60,14 +65,14 @@ can continue after hook failure, verify in the generated project:
 ```bash
 test -s .ddev/.runtime-ready
 ddev describe
-ddev exec -s phpr phpr --version
+ddev exec -s phpr phpr tests/probes/fiber-generator-suspend.php
 ddev logs -s phpr
 ```
 
 Installation still does not prove full Drupal rendering compatibility. Use a new
 project name for retries: `drupalphprust-local` is a preserved partial attempt.
-If another site occupies port 18090, prefix the installer with
-`PHPR_HTTP_PORT=18091`; the selected port persists across restarts and rebuilds.
+The direct Rust loopback port is allocated automatically to avoid collisions.
+An explicit `PHPR_HTTP_PORT=18091` persists across restarts and rebuilds.
 
 The optional Python developer helper is not part of this default workflow. Raw
 upstream local-path sources copy the whole source folder, including ignored files;
@@ -88,7 +93,6 @@ From the installed project, after checking the error:
 
 ```bash
 bash scripts/build-runtime.sh dev-release
-bash scripts/enable-runtime.sh dev-release
 # Or rerun the complete late hook, which also updates its completion marker:
 bash .drupalaibp/setup-runtime.sh
 ```
@@ -104,7 +108,8 @@ are needed: the source overlay supplies the repository.
 ```bash
 ddev start
 ddev drush status                 # standard PHP tooling
-ddev phpr --version               # PHP Rust CLI in the sidecar
+ddev tracker                      # open the tracker
+ddev phpr tests/probes/fiber-generator-suspend.php  # known failing compatibility probe
 ddev logs -s phpr
 ddev stop
 ```
@@ -115,16 +120,14 @@ runs PHP Rust. It derives the host and scheme from DDEV, rather than the folder
 name. The original DDEV URL continues to use Zend. These are separate service
 routes, not two names for the standard PHP web container.
 
-The direct PHP Rust fallback remains `http://127.0.0.1:18090/` on the
-machine running Docker, not necessarily your laptop. Choose another port with launcher `--runtime-port 18091`. It is written into the
-managed service, so ordinary DDEV starts need no exported variables. To change it
-on an existing installed site, run `PHPR_HTTP_PORT=18091 bash scripts/enable-runtime.sh dev-release`.
-Different projects on the same Docker host must use different ports.
+DDEV allocates the direct Rust loopback port; inspect `ddev describe` for the
+actual mapping. On Coder this is on the workspace machine. To pin a tunnel port,
+run `PHPR_HTTP_PORT=18091 bash scripts/enable-runtime.sh dev-release`.
+Different projects must use different explicitly pinned ports.
 Use separate browser contexts for control/candidate to avoid shared-host cookies.
 
-To disable the experiment, inspect and remove only the managed
-`.ddev/docker-compose.phpr.yaml`, then `ddev restart`; the normal web/db services
-remain. Do not delete volumes or databases. No automatic cleanup command is supplied.
+To disable the experiment, use `ddev add-on remove php-rust`, then
+`ddev restart`. The normal web/db services and database remain.
 
 ## Scoped compatibility experiment
 
@@ -150,7 +153,6 @@ Only after correctness passes:
 
 ```bash
 bash scripts/build-runtime.sh release
-bash scripts/enable-runtime.sh release
 ```
 
 This changes the runtime image, not the application's Composer lock or database.
@@ -171,14 +173,16 @@ Routing uses DDEV's documented [custom service hostnames](https://docs.ddev.com/
 
 ## Tracker landing page
 
-OLI opens `/project-tracker/` on the standard-PHP DDEV host. The final message
+OLI opens `https://tracker.<project-host>/` on its own static DDEV service.
+The actual scheme, hostname and port are derived from DDEV and saved as the
+absolute `LAUNCH_PATH` in ignored `.ddev/.env`, which OLI already supports. The final message
 lists the tracker and both runtime sites using actual installation metadata.
 `python3 scripts/tracker.py --install` publishes the page and refreshes timestamped
 service status; `--message` prints the three URLs. Normal tracker regeneration
-also refreshes Markdown in any managed installed copy. An unrelated existing
-`web/project-tracker` directory is never overwritten.
+also refreshes Markdown in any managed installed copy. Only generated tracker content is served, from ignored `.ddev/.tracker`,
+outside Drupal’s document root.
 
-The pre-launch hook registers unresolved local runtime hostnames through
+Before OLI announces completion, the setup hook registers all three unresolved local hostnames through
 `ddev hostname`, inheriting the installer terminal for any user authentication.
 Already resolving names are skipped. Coder keeps its existing private routes and
 tunnels. A failed or cancelled registration is shown in the tracker with a retry
@@ -192,6 +196,5 @@ DDEV may request an administrator password. Do not add the Rust hostname to
 
 ## Removing an installation
 
-Use `bash scripts/delete-project.sh` until AIBP ships the prepared cleanup hook.
-It cleans only this project and deletes its DDEV data, leaving source removal to
-you. Shared runtime images remain for other projects. See [cleanup](CLEANUP.md).
+Use the normal AIBP delete command. The bundled add-on uses DDEV’s native
+pre-delete hook; no extra command is needed. See [cleanup](CLEANUP.md).

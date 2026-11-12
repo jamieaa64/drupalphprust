@@ -2,7 +2,11 @@
 
 Updated: 2026-11-12
 
-**Cleanup:** [Project-owned deletion](docs/CLEANUP.md) is implemented; public AIBP needs the prepared upstream patch. Until then use the project cleanup command. Shared images are preserved.
+**Installer:** Bundled DDEV add-on gives the tracker its own hostname and uses
+normal AIBP/DDEV deletion, requiring DDEV 1.25.5+. Add-on installation, rendered
+routes and native cleanup are verified in an isolated fixture; full fresh
+installation/browser acceptance remains open. Public OLI still needs minimum-version
+handling; older DDEV users currently need a manual upgrade. [Receipt](docs/receipts/2026-11-12-native-ddev-addon.md).
 
 **Try it and take over:** [What works, known failures and next steps](docs/TRY-IT.md). The environment can be shared while compatibility tasks remain open.
 

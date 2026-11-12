@@ -30,7 +30,7 @@ def register(root=ROOT, run=subprocess.run, resolve=socket.gethostbyname):
     try:
         lines = (root/'.ddev/.runtime-urls').read_text().splitlines()
         hosts = []
-        for prefix in ('Standard PHP (Zend): ', 'PHP RUST: '):
+        for prefix in ('Standard PHP (Zend): ', 'PHP RUST: ', 'Project tracker: '):
             matches = [line[len(prefix):] for line in lines if line.startswith(prefix)]
             if len(matches) != 1:
                 raise ValueError('Missing or ambiguous runtime URL')

@@ -1,0 +1,6 @@
+#ddev-generated
+# DDEV >=1.25.5: ordinary ddev/AIBP deletion owns project resource cleanup.
+fail_on_hook_fail: true
+hooks:
+  pre-delete:
+    - exec-host: python3 scripts/cleanup-project.py

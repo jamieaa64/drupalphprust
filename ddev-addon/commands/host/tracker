@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#ddev-generated
+## Description: Open the project tracker service
+## Usage: tracker
+set -euo pipefail
+url="$(python3 -c 'from pathlib import Path; print(next(l.split(": ",1)[1] for l in Path(".ddev/.runtime-urls").read_text().splitlines() if l.startswith("Project tracker: ")))')"
+ddev launch "$url"

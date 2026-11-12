@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
+# DDEV owns the build and project-scoped image; no shared custom image tag.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
-profile="${1:-dev-release}"
-case "$profile" in dev-release|release) ;; *) echo 'Use dev-release or release' >&2; exit 2;; esac
 python3 "$root/scripts/check-repo.py"
-docker build --build-arg "RUNTIME_PROFILE=$profile" -f "$root/runtime/Dockerfile" -t "drupalphprust:$profile" "$root/runtime"
+bash "$root/scripts/enable-runtime.sh" "${1:-dev-release}"

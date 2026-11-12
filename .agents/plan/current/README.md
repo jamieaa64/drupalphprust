@@ -32,7 +32,9 @@ Upstream status is separate: not submitted, prepared, submitted, then merged
 
 The fresh installation first fails on missing XMLWriter (task 16); the earlier
 scoped Fiber/Generator blocker remains open. Installer and Coder integration can
-progress independently. Validate homepage, login, create, edit and view after
+progress independently. The bundled DDEV add-on now requires DDEV 1.25.5+,
+uses native deletion and a separate tracker hostname; full fresh-install
+acceptance remains open (task 09). Validate homepage, login, create, edit and view after
 runtime fixes. That journey checks compatibility; it is not the project's purpose.
 Prepare independent upstream changes along the way, submit only after end-to-end
 acceptance and user approval. Optional CMS gaps remain deferred. Comparison design and upstream-process research

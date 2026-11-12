@@ -9,7 +9,7 @@
   "agents": [],
   "skills": [],
   "extra_scripts": [],
-  "launch_path": "/project-tracker/",
+  "launch_path": "/",
   "agents_md": [
     "This is the drupalphprust runtime compatibility project, not a migration agent. Read AGENTS.md and .agents/plan/current/README.md before work.",
     "Use DDEV for Composer, Drush and the standard PHP control. PHP Rust runs in the phpr service. No end-to-end compatibility or speed claim has been established."
@@ -20,13 +20,11 @@
         "script": "./setup-runtime.sh",
         "where": "host",
         "weight": 50
-      }
-    ],
-    "before_launch_site": [
+      },
       {
         "script": "./setup-tracker.sh",
         "where": "host",
-        "weight": 50
+        "weight": 60
       }
     ],
     "before_agent_handoff": [
@@ -53,7 +51,7 @@
   ],
   "replace_welcome_text": [
     "Service availability does not certify Drupal compatibility. PHP Rust remains experimental; use the project tracker for evidence and remaining work.",
-    "Reopen the tracker: ddev launch /project-tracker/",
+    "Reopen the tracker: ddev tracker",
     "Coder: use your existing private workspace routes or tunnels; local DDEV URLs are not public workspace URLs."
   ]
 }

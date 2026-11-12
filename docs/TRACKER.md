@@ -42,7 +42,8 @@ reads the same Markdown live. No file-picker permissions or browser exceptions.
 
 ## Installed landing page
 
-OLI opens `/project-tracker/`, a generated snapshot served by DDEV web. Prominent
+OLI opens `tracker.<project-host>`, a generated snapshot served by a separate
+static DDEV service from `.ddev/.tracker`, outside Drupal’s document root. Prominent
 links read `.ddev/.runtime-urls`; timestamped service status is separate from
 runtime compatibility. Portable Git snapshots contain no installation metadata.
 No dotenv file, credentials or complete DDEV response is embedded.
@@ -56,4 +57,5 @@ accessible outside the workspace.
 The prominent introduction is authored in `docs/TRY-IT.md`; update that document
 when known blockers or contributor entry steps change. Hostname setup has its own
 status, independent of service health and runtime acceptance. Failed registration
-leaves a usable tracker and explicit retry steps.
+is recorded with explicit retry steps; if the tracker hostname itself cannot
+resolve, use `python3 scripts/tracker.py --serve` for the loopback preview.

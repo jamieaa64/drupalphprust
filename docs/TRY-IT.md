@@ -53,6 +53,5 @@ not automatic installer changes. No end-to-end or speed claim has been establish
 
 ## Removing an installation
 
-Use `bash scripts/delete-project.sh` until AIBP ships the prepared cleanup hook.
-It cleans only this project and deletes its DDEV data, leaving source removal to
-you. Shared runtime images remain for other projects. See [cleanup](CLEANUP.md).
+Use the normal AIBP delete command. With DDEV 1.25.5+ and this add-on installed,
+DDEV performs the project cleanup automatically. See [cleanup](CLEANUP.md).

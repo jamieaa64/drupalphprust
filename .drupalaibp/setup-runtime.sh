@@ -21,12 +21,11 @@ target="${target:-local}"
 case "$target" in local|coder) ;; *) echo 'Target must be local or coder' >&2; exit 2;; esac
 printf '%s\n' "$target" > .ddev/.runtime-target
 rm -f .ddev/.runtime-ready
-bash scripts/build-runtime.sh dev-release
 bash scripts/enable-runtime.sh dev-release
 printf '%s\n' 'Runtime setup completed; browser compatibility remains experimental.' > .ddev/.runtime-ready
 printf '%s\n' "$target" > .ddev/.runtime-target
 if [[ "$target" == coder ]]; then
   echo 'Coder: use your existing workspace routes or a private coder port-forward tunnel.'
 else
-  echo 'Local setup: use the labelled php. and rust. URLs printed above; saved in .ddev/.runtime-urls.'
+  echo 'Local setup: tracker, standard PHP and PHP Rust URLs are saved in .ddev/.runtime-urls.'
 fi

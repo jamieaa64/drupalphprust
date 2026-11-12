@@ -36,7 +36,7 @@ def installation(root=ROOT):
     urls={}
     if path.is_file():
         for line in path.read_text().splitlines():
-            for prefix,key in [('Standard PHP (Zend): ','php'),('PHP RUST: ','rust')]:
+            for prefix,key in [('Standard PHP (Zend): ','php'),('PHP RUST: ','rust'),('Project tracker: ','tracker')]:
                 if line.startswith(prefix): urls[key]=safe_url(line[len(prefix):])
     info={'urls':urls,'services':{},'checked':'Not checked'}
     status=root/'.ddev/.tracker-status.json'
@@ -57,7 +57,7 @@ def refresh_status():
     records=[json.loads(line) for line in result.stdout.splitlines() if line.startswith('{')]
     raw=next(r['raw'] for r in reversed(records) if 'primary_url' in r.get('raw',{}))
     # Persist only an explicit allowlist, never DDEV's credentials or full response.
-    info={'tracker':safe_url(raw['primary_url'])+'project-tracker/',
+    info={'tracker':installation()['urls'].get('tracker','Unavailable'),
           'checked':datetime.now(timezone.utc).isoformat(timespec='seconds'),
           'services':{name:raw.get('services',{}).get(name,{}).get('status','unknown')
                       for name in ('web','phpr')}}
@@ -68,10 +68,10 @@ def installed_snapshot():
     data=snapshot(); data['installation']=installation(); return data
 
 def publish_installed():
-    target=ROOT/'web/project-tracker'
+    target=ROOT/'.ddev/.tracker'
     marker=target/'.drupalphprust-tracker'
     if target.exists() and not marker.is_file():
-        raise ValueError('Refusing to overwrite unowned web/project-tracker')
+        raise ValueError('Refusing to overwrite unowned .ddev/.tracker')
     target.mkdir(exist_ok=True); marker.touch()
     (target/'index.html').write_text(html(installed_snapshot()))
 
@@ -83,14 +83,17 @@ def html(data):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--publish',action='store_true',help='Publish static tracker before service startup')
     p.add_argument('--install',action='store_true',help='Publish the installed landing page and record service status')
     p.add_argument('--message',action='store_true',help='Print actual installed URLs without credentials')
     p.add_argument('--serve',action='store_true')
     p.add_argument('--port',type=int,default=8765)
     p.add_argument('--check',action='store_true',help='Fail if the committed HTML snapshot is stale')
     args=p.parse_args()
+    if args.publish:
+        publish_installed(); return
     if args.install:
-        refresh_status(); publish_installed(); print('Published web/project-tracker/index.html'); return
+        refresh_status(); publish_installed(); print('Published tracker service content'); return
     if args.message:
         info=installation(); status=json.loads((ROOT/'.ddev/.tracker-status.json').read_text())
         print('Project tracker: '+status['tracker'])
@@ -132,6 +135,6 @@ def main():
             print('PASS: tracker snapshot matches Markdown')
         else:
             target.write_text(output); print('Updated tracker.html from Markdown')
-            if (ROOT/'web/project-tracker/.drupalphprust-tracker').is_file(): publish_installed()
+            if (ROOT/'.ddev/.tracker/.drupalphprust-tracker').is_file(): publish_installed()
 
 if __name__=='__main__': main()
