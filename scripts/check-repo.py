@@ -18,6 +18,11 @@ for folder in ['runtime', '.drupalaibp']:
 c=json.loads((root/'.drupalaibp/drupalphprust.json').read_text())
 assert c['profile']=='template' and c['site_template']=='drupal_cms_starter'
 assert c['ddev_project_type']=='drupal11' and c['is_drupal'] is True
+coder=json.loads((root/'.drupalaibp/coder.json').read_text())
+assert c['weight'] < coder['weight'], 'Local must be first in the installer picker'
+assert c['questions'][0]['value']=='local' and coder['questions'][0]['value']=='coder'
+assert {k:v for k,v in c.items() if k not in {'label','description','weight','questions'}} == {k:v for k,v in coder.items() if k not in {'label','description','weight','questions'}}, 'Host configs must share the same build'
+
 for events in c['hooks'].values():
     for hook in events:
         assert hook['where']=='host'

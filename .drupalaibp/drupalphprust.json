@@ -1,6 +1,6 @@
 {
-  "label": "Drupal CMS with experimental PHP Rust",
-  "description": "DDEV Drupal CMS with standard PHP and a locally built PHP Rust comparison service. No migration tooling.",
+  "label": "Local (default)",
+  "description": "Install Drupal CMS and PHP Rust on this computer using DDEV.",
   "ddev_project_type": "drupal11",
   "docroot": "web",
   "is_drupal": true,
@@ -16,11 +16,29 @@
   ],
   "hooks": {
     "before_announce_complete": [
-      {"script": "./setup-runtime.sh", "where": "host", "weight": 50}
+      {
+        "script": "./setup-runtime.sh",
+        "where": "host",
+        "weight": 50
+      }
     ]
   },
   "append_welcome_text": [
     "PHP Rust is experimental. Check .ddev/.runtime-ready and the phpr service; installer completion alone is not runtime acceptance.",
     "Read docs/USAGE.md and .agents/plan/current/README.md. The ordinary DDEV URL serves Zend; PHP Rust binds loopback port 18090."
+  ],
+  "weight": -10,
+  "questions": [
+    {
+      "env": "DRUPALPHPRUST_TARGET",
+      "type": "single-select-options",
+      "label": "Are you running locally or on Coder?",
+      "select_options": [
+        "local",
+        "coder"
+      ],
+      "default": "local",
+      "value": "local"
+    }
   ]
 }

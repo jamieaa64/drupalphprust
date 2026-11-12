@@ -7,8 +7,9 @@ handover for the standalone repository, not a request to resume migration work.
 
 The active source checkout was recreated outside the migration folder at
 `/Users/jamesabrahams/code/ai/drupalphprust` on `codex/portable-installer`.
-This path is a local convenience, not a runtime requirement. Use the One Line Installer directly with the GitHub repository URL, published
-`--ref` and `--config drupalphprust` from a parent directory. The Python launcher
+This path is a local convenience, not a runtime requirement. Use the One Line Installer directly with just the GitHub repository URL from a parent directory. Local is the first
+configuration choice; Coder is selectable interactively or with `--config coder`.
+Publish to main for that default command; `--ref` is only for branch testing. The Python launcher
 is an optional developer helper, not the supported user-facing setup command.
 Source is shared through Git; installed databases, credentials and build outputs
 stay local to each host. See USAGE.md and CODER.md before provisioning.

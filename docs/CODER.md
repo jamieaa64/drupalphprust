@@ -20,18 +20,18 @@ coder login YOUR_CODER_URL
 coder ssh WORKSPACE
 ```
 
-Inside that workspace, from a parent directory (not an existing DDEV project):
+Inside that workspace, from a parent directory:
 
 ```bash
 bash <(curl -fsSL https://aibp.drupalstarforge.ai/install.sh) \
-  https://github.com/jamieaa64/drupalphprust \
-  --ref codex/portable-installer \
-  --config drupalphprust \
-  --name drupalphprust-coder
+  https://github.com/jamieaa64/drupalphprust --config coder
 ```
 
-No pre-clone or custom launcher is needed. Push the branch first. The installer
-reads its `.drupalaibp/` config and creates the project using DDEV.
+Or omit `--config coder` and choose Coder in the installer's Local/Coder picker.
+The normal local command uses the same repository URL, with Local selected by
+default. Publish changes to `main` first; `--ref` is only for branch testing.
+The installer reads `.drupalaibp/coder.json` and creates the project using DDEV.
+No pre-clone or custom launcher is required.
 
 The repo is public, so cloning needs no GitHub API key. A private fork can use
 user-managed Git authentication; never add credentials to the remote URL.

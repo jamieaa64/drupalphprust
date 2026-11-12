@@ -31,7 +31,9 @@ set -euo pipefail
 source="$1"
 [[ ! -e "$source/.env" && ! -e "$source/.work" ]]
 [[ "$(git -C "$source" remote get-url origin)" == https://github.com/jamieaa64/drupalphprust.git ]]
-[[ "$2" == --config && "$3" == drupalphprust && "$4" == --name ]]
+[[ "$2" == --config && "$4" == --name ]]
+expected=drupalphprust; [[ "$DRUPALPHPRUST_TARGET" == coder ]] && expected=coder
+[[ "$3" == "$expected" ]]
 mkdir -p "$5/.ddev"
 printf '%s:%s' "$DRUPALPHPRUST_TARGET" "$PHPR_HTTP_PORT" > "$5/observed"
 if [[ "${TEST_NO_MARKER:-0}" != 1 ]]; then echo ready > "$5/.ddev/.runtime-ready"; fi
@@ -94,5 +96,26 @@ class RuntimePortTests(unittest.TestCase):
             result=subprocess.run(command,env=env,capture_output=True)
             self.assertNotEqual(result.returncode,0)
             self.assertEqual(service.read_text(),'# user owned\n')
+
+class HostChoiceTests(unittest.TestCase):
+    def test_host_hook_uses_installer_answer_without_executing_dotenv(self):
+        for answer, override, expected in [(None,None,'local'),('coder',None,'coder'),('coder','local','local')]:
+            with self.subTest(answer=answer,override=override), tempfile.TemporaryDirectory() as temp:
+                root=Path(temp)
+                for directory in ['runtime','scripts','.ddev']:
+                    (root/directory).mkdir()
+                (root/'runtime/Dockerfile').touch()
+                (root/'.ddev/config.yaml').touch()
+                for name in ['build-runtime.sh','enable-runtime.sh']:
+                    (root/'scripts'/name).write_text('exit 0\n')
+                contents='UNRELATED=$(touch should-not-exist)\n'
+                if answer: contents += 'DRUPALPHPRUST_TARGET="'+answer+'"\n'
+                (root/'.ddev/.env').write_text(contents)
+                env=dict(os.environ); env.pop('DRUPALPHPRUST_TARGET',None)
+                if override: env['DRUPALPHPRUST_TARGET']=override
+                result=subprocess.run(['bash',str(ROOT/'.drupalaibp/setup-runtime.sh')],cwd=root,env=env,capture_output=True,text=True)
+                self.assertEqual(result.returncode,0,result.stderr)
+                self.assertEqual((root/'.ddev/.runtime-target').read_text().strip(),expected)
+                self.assertFalse((root/'should-not-exist').exists())
 
 if __name__=='__main__': unittest.main()

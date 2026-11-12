@@ -1,0 +1,44 @@
+{
+  "label": "Coder",
+  "description": "Install the same project inside an existing Coder DDEV freeform workspace.",
+  "ddev_project_type": "drupal11",
+  "docroot": "web",
+  "is_drupal": true,
+  "profile": "template",
+  "site_template": "drupal_cms_starter",
+  "agents": [],
+  "skills": [],
+  "extra_scripts": [],
+  "launch_path": "/",
+  "agents_md": [
+    "This is the drupalphprust runtime compatibility project, not a migration agent. Read AGENTS.md and .agents/plan/current/README.md before work.",
+    "Use DDEV for Composer, Drush and the standard PHP control. PHP Rust runs in the phpr service. No end-to-end compatibility or speed claim has been established."
+  ],
+  "hooks": {
+    "before_announce_complete": [
+      {
+        "script": "./setup-runtime.sh",
+        "where": "host",
+        "weight": 50
+      }
+    ]
+  },
+  "append_welcome_text": [
+    "PHP Rust is experimental. Check .ddev/.runtime-ready and the phpr service; installer completion alone is not runtime acceptance.",
+    "Read docs/USAGE.md and .agents/plan/current/README.md. The ordinary DDEV URL serves Zend; PHP Rust binds loopback port 18090."
+  ],
+  "weight": 10,
+  "questions": [
+    {
+      "env": "DRUPALPHPRUST_TARGET",
+      "type": "single-select-options",
+      "label": "Are you running locally or on Coder?",
+      "select_options": [
+        "local",
+        "coder"
+      ],
+      "default": "local",
+      "value": "coder"
+    }
+  ]
+}

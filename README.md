@@ -24,32 +24,35 @@ There is no proven speed advantage and no claim that untouched Drupal CMS works.
 - [Discrete upstream submissions](docs/UPSTREAM.md)
 - [GitHub handoff](docs/GITHUB.md)
 
-## Local or Coder setup
+## Install
 
-Use the [One Line Installer](https://project.pages.drupalcode.org/one_line_installer/guides/getting-started/)
-directly, passing this repository and a **published** branch. Run in your terminal
-from the parent directory where the new project should be created:
+From the parent directory where you want the project created:
 
 ```bash
 bash <(curl -fsSL https://aibp.drupalstarforge.ai/install.sh) \
-  https://github.com/jamieaa64/drupalphprust \
-  --ref codex/portable-installer \
-  --config drupalphprust \
-  --name drupalphprust-site
+  https://github.com/jamieaa64/drupalphprust
 ```
 
-The installer reads `.drupalaibp/drupalphprust.json` from that branch, creates
-`drupalphprust-site`, installs Drupal CMS using DDEV, and runs our late hook to
-build and enable PHP Rust. Follow its prompts, including any DDEV administrator
-password request. No Python launcher or pre-clone is required.
+The One Line Installer offers **Local (default)** first and **Coder** second.
+Press Enter for local installation, then answer the project-name and DDEV prompts.
+It fetches this repo's default branch and uses its `.drupalaibp/` configuration.
+No pre-clone, Python launcher, branch or project-name argument is required.
 
-Use the same command inside a Coder DDEV **freeform** workspace, choosing a new
-project name. Coder supplies the host; no new template, API key or Coder dependency
-is needed for the local build. See [usage](docs/USAGE.md) and [Coder workflow](docs/CODER.md).
+Inside a Coder DDEV freeform workspace, select Coder at the prompt or skip that
+choice with the existing installer argument:
 
-`codex/portable-installer` must be pushed before this command can fetch it. Once
-merged into main, omit `--ref` or select a released ref. The runtime remains
-experimental: installation is not proof of Drupal end-to-end compatibility.
+```bash
+bash <(curl -fsSL https://aibp.drupalstarforge.ai/install.sh) \
+  https://github.com/jamieaa64/drupalphprust --config coder
+```
+
+Both choices install the same Drupal CMS and PHP Rust service. Coder is only the
+host; no new template or API key is required in this repository. Follow
+[usage](docs/USAGE.md) and [Coder access instructions](docs/CODER.md).
+
+These source changes must be published to GitHub's default branch (`main`) for
+the exact default command to pick them up. A branch-specific `--ref` is only for
+pre-release testing, not the normal setup command.
 
 ## Portable runtime work
 

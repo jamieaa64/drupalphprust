@@ -15,7 +15,7 @@ check, not the project's identity or the only goal.
 ## Current provisioning work
 
 Create the standalone checkout outside the migration directory; provide a local
-or Coder-freeform setup using the One Line Installer directly with this repo/ref.
+or Coder-freeform setup using the One Line Installer directly with this repo URL. Local is the default picker choice; `--config coder` selects Coder.
 The user clarified that the native repo-config command is the required interface;
 the Python launcher is only an optional developer helper. No Coder/API
 credentials in source. Validate clean source export, persistent ports, explicit

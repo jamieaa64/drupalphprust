@@ -45,7 +45,7 @@ with tempfile.TemporaryDirectory(prefix='drupalphprust-source-') as temporary:
     source = Path(temporary)/'source'
     subprocess.run(['git', 'clone', '--no-hardlinks', '--no-local', str(ROOT), str(source)], check=True)
     subprocess.run(['git', 'remote', 'set-url', 'origin', 'https://github.com/jamieaa64/drupalphprust.git'], cwd=source, check=True)
-    command = ['bash', installer, str(source), '--config', 'drupalphprust', '--name', dest.name]
+    command = ['bash', installer, str(source), '--config', ('coder' if a.target == 'coder' else 'drupalphprust'), '--name', dest.name]
     if a.yes:
         command.append('--yolo')
     result = subprocess.run(command, cwd=dest.parent, env=env)

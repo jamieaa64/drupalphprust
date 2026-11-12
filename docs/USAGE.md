@@ -26,54 +26,52 @@ those are not the portable source. Do not move databases through Git.
 
 ## Run the One Line Installer directly
 
-Use the [official one-liner](https://project.pages.drupalcode.org/one_line_installer/guides/getting-started/)
-from the **parent directory**, not the source checkout or an existing DDEV site:
+From a **parent directory**, not an existing DDEV site:
 
 ```bash
 bash <(curl -fsSL https://aibp.drupalstarforge.ai/install.sh) \
-  https://github.com/jamieaa64/drupalphprust \
-  --ref codex/portable-installer \
-  --config drupalphprust \
-  --name drupalphprust-site
+  https://github.com/jamieaa64/drupalphprust
 ```
 
-If the CLI is already installed, the equivalent is:
+The installer fetches the repository's default branch. Its configuration picker
+shows **Local (default)** first and **Coder** second. Choose Local (or press Enter)
+for your laptop. It asks for a new project name; no `--name`, `--config` or `--ref`
+is needed for normal local installation. DDEV handles its usual setup prompts,
+including administrator authentication in your terminal when needed.
+
+For Coder, run inside an existing DDEV freeform workspace and either choose Coder
+or append `--config coder`. This is the installer's existing config argument,
+not an invented `--coder` flag. No new Coder template is required.
+
+The two configs share the same build and hooks. They pre-answer the host choice
+as `DRUPALPHPRUST_TARGET=local` or `coder`; the installer saves that non-secret
+answer in ignored `.ddev/.env`. The host hook reads only that key, without sourcing
+or exposing other environment values. `main` must contain these changes before
+the default URL command uses them; `--ref BRANCH` remains optional for development.
+
+For unattended installation use `--yolo --config drupalphprust` locally or
+`--yolo --config coder` on Coder: the upstream installer requires a selector when
+multiple configs are present in unattended mode. The normal interactive command
+above needs no selector.
+
+The late hook builds the runtime and enables the DDEV sidecar. Since upstream
+can continue after hook failure, verify in the generated project:
 
 ```bash
-drupalaibp https://github.com/jamieaa64/drupalphprust --ref codex/portable-installer --config drupalphprust --name drupalphprust-site
-```
-
-The selected branch must be published. The installer fetches its
-`.drupalaibp/drupalphprust.json` and scripts; you do not need to clone this repo
-first or use `scripts/install.py`. That script is an optional developer helper
-for committed local-source experiments, not the project's installation interface.
-
-The config uses `profile: template` and `site_template: drupal_cms_starter`.
-The late host hook builds the runtime and enables the DDEV sidecar. Use a new
-`--name` for each fresh attempt; the previous `drupalphprust-local` folder is a
-partial installation. Run interactively so you can answer DDEV's prompts yourself.
-
-For another runtime port, prefix the command with `PHPR_HTTP_PORT=18091`.
-The port is saved in the managed service and survives restarts/rebuilds.
-Both local and Coder freeform hosts use the same config. Optional environment
-variable `DRUPALPHPRUST_TARGET=coder` records host context; it does not provision
-Coder or require credentials. There is no upstream `--target` flag.
-
-The installer can warn and continue after a failed hook, so verify explicitly:
-
-```bash
-cd drupalphprust-site
 test -s .ddev/.runtime-ready
 ddev describe
 ddev exec -s phpr phpr --version
 ddev logs -s phpr
-curl --fail http://127.0.0.1:18090/user/login -o /tmp/phpr-login.html
 ```
 
-Inspect response content too. The installer manages the disposable site's initial
-credentials; never put passwords, cookies or database dumps in Git. For local-path
-installer sources use a clean checkout: upstream copies the whole source directory,
-including ignored files. The published Git-source command avoids that problem.
+Installation still does not prove full Drupal rendering compatibility. Use a new
+project name for retries: `drupalphprust-local` is a preserved partial attempt.
+If another site occupies port 18090, prefix the installer with
+`PHPR_HTTP_PORT=18091`; the selected port persists across restarts and rebuilds.
+
+The optional Python developer helper is not part of this default workflow. Raw
+upstream local-path sources copy the whole source folder, including ignored files;
+use a clean checkout for those. Git URL installs fetch committed source only.
 
 ## Host prerequisite failures
 
