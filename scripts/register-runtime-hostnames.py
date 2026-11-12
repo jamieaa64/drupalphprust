@@ -11,6 +11,10 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def register(root=ROOT, run=subprocess.run, resolve=socket.gethostbyname):
     receipt = root/'.ddev/.runtime-network.json'
+    ownership = root/'.ddev/.runtime-owned-hostnames.json'
+    owned = json.loads(ownership.read_text()) if ownership.exists() else {'root': str(root.resolve()), 'hosts': []}
+    if owned.get('root') != str(root.resolve()):
+        raise ValueError('Hostname ownership belongs to another checkout')
     target_file = root/'.ddev/.runtime-target'
     target = target_file.read_text().strip() if target_file.exists() else 'local'
     def finish(status):
@@ -46,6 +50,10 @@ def register(root=ROOT, run=subprocess.run, resolve=socket.gethostbyname):
                 pass
             print(f'Registering {host} through DDEV. Enter any administrator password directly in your terminal.', flush=True)
             # Inherit the installer terminal; never capture, store or supply a password.
+            # Record intent before mutation, so interruption cannot lose cleanup ownership.
+            # Already resolving aliases are never adopted from another owner.
+            if host not in owned['hosts']: owned['hosts'].append(host)
+            ownership.write_text(json.dumps(owned)+'\n')
             run(['ddev', 'hostname', host, '127.0.0.1'], check=True)
             if resolve(host) != '127.0.0.1':
                 raise ValueError('Hostname did not resolve to local DDEV after registration')

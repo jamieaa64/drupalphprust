@@ -189,3 +189,9 @@ To retry, run `python3 scripts/register-runtime-hostnames.py`, then
 `ddev hostname HOST 127.0.0.1` for each hostname in `.ddev/.runtime-urls`.
 DDEV may request an administrator password. Do not add the Rust hostname to
 `additional_hostnames`, which would route it to standard PHP.
+
+## Removing an installation
+
+Use `bash scripts/delete-project.sh` until AIBP ships the prepared cleanup hook.
+It cleans only this project and deletes its DDEV data, leaving source removal to
+you. Shared runtime images remain for other projects. See [cleanup](CLEANUP.md).

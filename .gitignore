@@ -57,3 +57,6 @@
 /tracker-message.sh
 
 .ddev/.runtime-network.json
+
+.ddev/.runtime-owned-hostnames.json
+.ddev/.tracker-stop

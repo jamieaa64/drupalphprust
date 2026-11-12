@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build a standalone plan tracker, or serve its Markdown live on loopback."""
-import argparse, json, re, subprocess
+import argparse, json, re, subprocess, time
 from datetime import datetime, timezone
 from urllib.parse import urlsplit
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -116,8 +116,14 @@ def main():
                 self.end_headers(); self.wfile.write(body)
             def log_message(self,*args): pass
         print(f'Tracker: http://127.0.0.1:{args.port} (Ctrl-C to stop)',flush=True)
-        try: ThreadingHTTPServer(('127.0.0.1',args.port),Handler).serve_forever()
-        except KeyboardInterrupt: pass
+        started=time.time()
+        stop=ROOT/'.ddev/.tracker-stop'
+        with ThreadingHTTPServer(('127.0.0.1',args.port),Handler) as server:
+            server.timeout=0.5
+            try:
+                while ROOT.is_dir() and not (stop.exists() and stop.stat().st_mtime >= started):
+                    server.handle_request()
+            except KeyboardInterrupt: pass
     else:
         output=html(snapshot()); target=ROOT/'tracker.html'
         if args.check:

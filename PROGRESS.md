@@ -2,6 +2,8 @@
 
 Updated: 2026-11-12
 
+**Cleanup:** [Project-owned deletion](docs/CLEANUP.md) is implemented; public AIBP needs the prepared upstream patch. Until then use the project cleanup command. Shared images are preserved.
+
 **Try it and take over:** [What works, known failures and next steps](docs/TRY-IT.md). The environment can be shared while compatibility tasks remain open.
 
 **Current installation:** PHP Rust homepage fails with missing `XMLWriter` ([active task 16](.agents/plan/current/16-xmlwriter.md)); standard PHP responds successfully. Earlier scoped-site blocker: Fiber / Generator suspension. See [installation receipt](docs/receipts/2026-11-12-tracker-landing.md).

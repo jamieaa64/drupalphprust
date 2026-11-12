@@ -16,6 +16,8 @@ Local installation completed. Tracker landing and completion text are implemente
 - Use OLI launch_path, replacement welcome text and existing hooks; no upstream installer change needed.
 - Preserve Markdown navigation and live preview; installed URLs/status remain credential-free.
 
+- Pair setup with owned-alias cleanup and tracker shutdown. Current AIBP needs the explicit cleanup command until the prepared upstream hook is released; see [cleanup](../../../docs/CLEANUP.md).
+
 ## Test / finish
 
 - [x] Observe completed installation and running web/phpr services.

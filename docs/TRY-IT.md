@@ -50,3 +50,9 @@ Start with [handover](HANDOVER.md) and [testing](TESTING.md). Record the image,
 fixture and exact result in a receipt. Do not conceal runtime failures by silently
 turning off Drupal features. Historical exclusions are documented experiments,
 not automatic installer changes. No end-to-end or speed claim has been established.
+
+## Removing an installation
+
+Use `bash scripts/delete-project.sh` until AIBP ships the prepared cleanup hook.
+It cleans only this project and deletes its DDEV data, leaving source removal to
+you. Shared runtime images remain for other projects. See [cleanup](CLEANUP.md).
