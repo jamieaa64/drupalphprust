@@ -55,8 +55,13 @@ use declared dependency chains or rebuild a minimal branch from pinned upstream.
 | session-regenerate-cookie | Emit replacement cookie after ID rotation; HTTP regression |
 | preg-byte-offset | Convert byte-mode start offset into internal Latin1 view; Unicode Twig reproduction |
 | chained-magic-argument | Dereference receiver before deferred property read; magic/hooks/visibility fixtures |
+| spl-fileinfo-ctime | Timestamp accessor, inherited iterator behavior and failed-stat RuntimeException |
+| static-property-reference | Bind static storage to source cell, preserve old aliases, return references and execute finally; static-reference/return-reference dependencies |
 
-The current Views assignment gap is the **next** unit, not present as a claimed fix.
+The `static-property-reference` candidate covers static-property reference binding
+and bare reference returns. Its alias/rebinding/finally fixture passes Zend parity and fixes Views class loading;
+full browser acceptance is still blocked elsewhere. Reference-call RHS binding, parenthesized/dynamic forms and typed static-property enforcement
+remain outside this candidate.
 Runtime assertions differ in coverage: see HANDOVER.md rather than equating every
 exported patch with completed browser validation.
 

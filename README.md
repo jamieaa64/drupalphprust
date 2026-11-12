@@ -47,7 +47,7 @@ Composer and Drush continue using standard PHP during this experiment.
 
 ## Portable runtime work
 
-The repository contains 29 ordered runtime patches, focused PHP/PHPT fixtures,
+The repository contains ordered runtime patches, focused PHP/PHPT fixtures,
 and the pinned upstream revision. It does **not** need the old workspace or a
 sibling PHP Rust checkout:
 

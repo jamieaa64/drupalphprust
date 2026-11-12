@@ -1,0 +1,207 @@
+--- a/php-rust/crates/php-runtime/src/lower/expr.rs
++++ b/php-rust/crates/php-runtime/src/lower/expr.rs
+@@ -114,7 +114,13 @@
+                 if let AssignmentOperator::Assign(_) = a.operator {
+                     if let Expression::UnaryPrefix(u) = a.rhs {
+                         if let UnaryPrefixOperator::Reference(_) = u.operator {
+-                            let target = self.lower_place(a.lhs, line)?;
++                            let target = if let Expression::Access(Access::StaticProperty(sp)) = a.lhs {
++                                let class = self.class_ref_of(sp.class, line)?;
++                                let name = static_prop_name(&sp.property, line)?.into();
++                                Place { base: PlaceBase::StaticProp { class, name }, steps: Vec::new() }
++                            } else {
++                                self.lower_place(a.lhs, line)?
++                            };
+                             // `$y = &f(...)`: alias the cell a by-reference
+                             // function returns (step 13, D-13.5).
+                             if let Expression::Call(_) = u.operand {
+@@ -1041,7 +1047,7 @@
+     /// forms added in step 48). `self`/`parent`/`static` and a bare identifier
+     /// resolve statically; anything else (`$cls`, `$obj`, `Foo::CONST`, a call,
+     /// …) becomes `ClassRef::Dynamic` and is resolved to a class at runtime.
+-    fn class_ref_of(&mut self, class: &Expression, _line: Line) -> Result<ClassRef, LowerError> {
++    pub(super) fn class_ref_of(&mut self, class: &Expression, _line: Line) -> Result<ClassRef, LowerError> {
+         match class {
+             Expression::Self_(_) => Ok(ClassRef::SelfClass),
+             Expression::Parent(_) => Ok(ClassRef::Parent),
+--- a/php-rust/crates/php-runtime/src/compile/assign.rs
++++ b/php-rust/crates/php-runtime/src/compile/assign.rs
+@@ -328,6 +328,21 @@
+         // bound variable and the stored static property
+         // (`$exists = &self::$existsCache[$k]`, ClassExistenceResource).
+         if let PlaceBase::StaticProp { class, name } = &target.base {
++            if target.steps.is_empty() {
++                if self.is_runtime_class(class) {
++                    return Err(CompileError::Unsupported("dynamic static-property reference binding".into()));
++                }
++                let target_class = self.resolve_target(class)?.0;
++                let temp = self.alloc_temp();
++                let local = Place { base: PlaceBase::Local(temp), steps: Vec::new() };
++                self.assign_ref(&local, source)?;
++                self.emit(Op::Pop);
++                self.emit(Op::PushRef(temp));
++                self.clear_temp_binding(temp);
++                self.free_temp();
++                self.emit(Op::StaticPropBindRef { target: target_class, name: name.clone().into() });
++                return Ok(());
++            }
+             let (class, name) = (class.clone(), SpName::Lit(name.clone()));
+             let src = source.clone();
+             return self.static_prop_rmw(&class, &name, &target.steps, false, move |s, local| {
+@@ -617,7 +632,6 @@
+             if let SpName::Lit(n) = &name {
+                 let target = self.resolve_target(&class)?.0;
+                 self.emit(Op::StaticPropRef { target, name: n.clone().into() });
+-                self.emit(Op::Ret);
+                 return Ok(true);
+             }
+         }
+@@ -626,7 +640,6 @@
+             s.emit(Op::MakeRef { base, steps: steps.into() });
+             Ok(())
+         })?;
+-        self.emit(Op::Ret);
+         Ok(true)
+     }
+ 
+--- a/php-rust/crates/php-runtime/src/bytecode.rs
++++ b/php-rust/crates/php-runtime/src/bytecode.rs
+@@ -1317,6 +1317,9 @@
+     /// reference value (`$x = &Class::$sp`): writes through the binding then
+     /// hit the live cell every other static-prop op reads.
+     StaticPropRef { target: ClassTarget, name: Rc<[u8]> },
++    /// `[ref] -> [value]` — rebind the static storage to the source cell.
++    /// Existing aliases to the previous cell remain attached to that old cell.
++    StaticPropBindRef { target: ClassTarget, name: Rc<[u8]> },
+     /// `[rhs] -> [result]` — compound `target::$name op= rhs`.
+     StaticPropOpSet { target: ClassTarget, name: Rc<[u8]>, op: BinOp },
+     /// `[] -> [result]` — `++`/`--` on `target::$name`.
+--- a/php-rust/crates/php-runtime/src/compile/reg_lower.rs
++++ b/php-rust/crates/php-runtime/src/compile/reg_lower.rs
+@@ -184,7 +184,7 @@
+         | Op::AllocDynamic { .. } | Op::InvokeCtor { .. }
+         | Op::InvokeCtorArgs { .. } | Op::InitProps { .. }
+         | Op::StampThrowable { .. } | Op::StaticPropGet { .. }
+-        | Op::StaticPropSet { .. } | Op::StaticPropRef { .. }
++        | Op::StaticPropSet { .. } | Op::StaticPropBindRef { .. } | Op::StaticPropRef { .. }
+         | Op::StaticPropOpSet { .. } | Op::StaticPropIncDec { .. }
+         | Op::StaticPropGetDynamic { .. } | Op::StaticPropSetDynamic { .. }
+         | Op::StaticPropOpSetDynamic { .. } | Op::StaticPropIncDecDynamic { .. }
+@@ -438,7 +438,7 @@
+         | Op::AllocDynamic { .. } | Op::InvokeCtor { .. }
+         | Op::InvokeCtorArgs { .. } | Op::InitProps { .. }
+         | Op::StampThrowable { .. } | Op::StaticPropGet { .. }
+-        | Op::StaticPropSet { .. } | Op::StaticPropRef { .. }
++        | Op::StaticPropSet { .. } | Op::StaticPropBindRef { .. } | Op::StaticPropRef { .. }
+         | Op::StaticPropOpSet { .. } | Op::StaticPropIncDec { .. }
+         | Op::StaticPropGetDynamic { .. } | Op::StaticPropSetDynamic { .. }
+         | Op::StaticPropOpSetDynamic { .. } | Op::StaticPropIncDecDynamic { .. }
+--- a/php-rust/crates/php-runtime/src/vm/liveness.rs
++++ b/php-rust/crates/php-runtime/src/vm/liveness.rs
+@@ -463,7 +463,7 @@
+         | Op::StaticPropIncDecDynamic { .. }
+         | Op::StaticPropOpSet { .. }
+         | Op::StaticPropOpSetDynamic { .. }
+-        | Op::StaticPropRef { .. }
++        | Op::StaticPropBindRef { .. } | Op::StaticPropRef { .. }
+         | Op::StaticPropSet { .. }
+         | Op::StaticPropSetDynName { .. }
+         | Op::StaticPropSetDynamic { .. }
+@@ -755,7 +755,7 @@
+             | Op::StaticPropIncDecDynamic { .. }
+             | Op::StaticPropOpSet { .. }
+             | Op::StaticPropOpSetDynamic { .. }
+-            | Op::StaticPropRef { .. }
++            | Op::StaticPropBindRef { .. } | Op::StaticPropRef { .. }
+             | Op::StaticPropSet { .. }
+             | Op::StaticPropSetDynName { .. }
+             | Op::StaticPropSetDynamic { .. }
+--- a/php-rust/crates/php-runtime/src/vm/run.rs
++++ b/php-rust/crates/php-runtime/src/vm/run.rs
+@@ -6402,6 +6402,24 @@
+                     *cell.borrow_mut() = value.clone();
+                     self.frames[top].stack.push(value);
+                 }
++                Op::StaticPropBindRef { target, name } => {
++                    // Check visibility and complete lazy initialization before
++                    // replacing storage. Keep the operand for an init retry.
++                    if self.ensure_static(*target, name, top, ip)?.is_none() {
++                        continue;
++                    }
++                    let start = self.target_class_id(*target, top)?;
++                    let (decl, _) = find_static_prop(&self.classes, start, name)
++                        .expect("ensure_static resolved the property");
++                    let value = self.frames[top].stack.pop().expect("static reference source");
++                    let cell = match value {
++                        Zval::Ref(cell) => cell,
++                        value => php_types::zcell(value),
++                    };
++                    let result = cell.borrow().deref_clone();
++                    self.static_props.insert((decl, name.to_vec()), cell);
++                    self.frames[top].stack.push(result);
++                }
+                 Op::StaticPropRef { target, name } => {
+                     // `$x = &Class::$sp`: the property's storage cell itself,
+                     // wrapped as a reference value — the alias is live both ways.
+--- a/php-rust/crates/php-runtime/src/vm/census.rs
++++ b/php-rust/crates/php-runtime/src/vm/census.rs
+@@ -13,7 +13,7 @@
+ use crate::hir::BinOp;
+ use php_types::Zval;
+ 
+-pub const N_OPS: usize = 200;
++pub const N_OPS: usize = 201;
+ 
+ pub const OP_NAMES: [&str; N_OPS] = [
+     "PushConst", "Pop", "Dup", "LoadSlot", "LoadVar", "PushUndef", "StoreSlot", "Swap",
+@@ -45,7 +45,7 @@
+     "PropGetSlotRecv", "BinaryTCPropSetPop", "BinarySCSCDst", "LoadVarPushConst",
+     "ConcatNConst",
+     "BinaryAdd",
+-    "PropDimGetConst",
++    "PropDimGetConst", "StaticPropBindRef",
+ ];
+ 
+ pub fn op_index(op: &Op) -> usize {
+@@ -271,6 +271,7 @@
+         Op::BinaryAdd => 198,
+         // S-145 FR1: dim-read fuso a chiave costante.
+         Op::PropDimGetConst { .. } => 199,
++        Op::StaticPropBindRef { .. } => 200,
+     }
+ }
+ 
+--- a/php-rust/crates/php-runtime/src/lower/stmt.rs
++++ b/php-rust/crates/php-runtime/src/lower/stmt.rs
+@@ -254,6 +254,15 @@
+                 // Inside a `function &f()`, `return <lvalue>` returns a reference
+                 // to the place (D-13.2/D-13.3). A non-lvalue (or bare `return;`)
+                 // stays a value return; the runtime emits the by-ref Notice.
++                Some(e) if self.fn_by_ref && matches!(e, Expression::Access(mago_syntax::ast::Access::StaticProperty(_))) => {
++                    let Expression::Access(mago_syntax::ast::Access::StaticProperty(sp)) = e else { unreachable!() };
++                    let class = self.class_ref_of(sp.class, line)?;
++                    let name = static_prop_name(&sp.property, line)?.into();
++                    StmtKind::ReturnRef(crate::hir::Place {
++                        base: crate::hir::PlaceBase::StaticProp { class, name },
++                        steps: Vec::new(),
++                    })
++                }
+                 Some(e) if self.fn_by_ref && is_returnable_lvalue(e) => {
+                     StmtKind::ReturnRef(self.lower_place(e, line)?)
+                 }
+--- a/php-rust/crates/php-runtime/src/compile/mod.rs
++++ b/php-rust/crates/php-runtime/src/compile/mod.rs
+@@ -1332,6 +1332,13 @@
+                 if !self.return_ref_static_prop(place)? {
+                     let (base, steps) = self.field_path(place)?;
+                     self.emit(Op::MakeRef { base, steps: steps.into() });
++                }
++                // Preserve the cell while executing any enclosing finally.
++                if !self.finally_scopes.is_empty() {
++                    self.emit(Op::ParkReturn);
++                    let jmp = self.emit(Op::Jump(Addr::MAX));
++                    self.finally_scopes.last_mut().unwrap().sites.push(jmp);
++                } else {
+                     self.emit(Op::Ret);
+                 }
+             }

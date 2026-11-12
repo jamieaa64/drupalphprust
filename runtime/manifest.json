@@ -117,6 +117,14 @@
     {
       "file": "chained-magic-argument.patch",
       "sha256": "ed8d298a371d061ac138a40abc120673bf10f14e44d8697653095d61d6a186ca"
+    },
+    {
+      "file": "static-property-reference.patch",
+      "sha256": "9f5033a6f3e6992c4a804e742457750f06c8c864c3d563794afa612f72f113e4"
+    },
+    {
+      "file": "spl-fileinfo-ctime.patch",
+      "sha256": "4c535dab4f8a0b9051b544f3c7e3d67f571249a392049d39b454c2e1e2251bc8"
     }
   ]
 }

@@ -13,7 +13,7 @@ subprocess.run(['python3',str(root/'scripts/check-repo.py')],check=True)
 dest.parent.mkdir(parents=True,exist_ok=True)
 source=str(Path(a.source).resolve()) if a.source else m['repository']
 subprocess.run(['git','clone','--no-hardlinks','--no-checkout',source,str(dest)],check=True)
-subprocess.run(['git','checkout','-b','codex/drupal-compatibility',m['commit']],cwd=dest,check=True)
+subprocess.run(['git','checkout','-B','codex/drupal-compatibility',m['commit']],cwd=dest,check=True)
 for entry in m['patches']:
     patch=str(root/'runtime/patches'/entry['file'])
     subprocess.run(['git','apply','--check',patch],cwd=dest,check=True)

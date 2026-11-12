@@ -1,6 +1,6 @@
 # Current plan: Drupal CMS on PHP Rust
 
-Updated 2026-11-11. Owner: this repository. Read `docs/HANDOVER.md` to resume.
+Updated 2026-11-12. Owner: this repository. Read `docs/HANDOVER.md` to resume.
 
 ## Objective and finish line
 
@@ -16,8 +16,8 @@ check, not the project's identity or the only goal.
 
 | Order | Work | Status / exit condition |
 | --- | --- | --- |
-| 1 | Extract a standalone repository, plans, patches and handover | Prepared locally; portable reconstruction verified (29 patches / 35 source files); publication by user pending |
-| 2 | Fix Views static-property reference assignment lowering | Active blocker: Page.php:129, `static::$pageRenderArray = &$element` |
+| 1 | Extract a standalone repository, plans, patches and handover | Prepared locally; portable reconstruction verified (29 patches / 35 source files); published by user to GitHub main |
+| 2 | Fix Views static-property reference assignment lowering | Fixed; old image fails fixture, new image matches Zend; alias/rebinding/finally regression and 28-probe suite pass |
 | 3 | Continue Drupal compatibility fixes | Each failure gets a minimal Zend/Rust fixture, narrow patch and review |
 | 4 | Prove browser acceptance | Homepage/login verified earlier; dashboard/create/edit/view require new evidence |
 | 5 | Validate the whole combined runtime | Expanded differential suite, database, SPL and HTTP session/server tests pass |
@@ -37,11 +37,12 @@ Earlier runtime work verified database fixtures and recursive iterators; individ
 fixes now cover reference calls, rendering/Stringable behavior, ArrayAccess,
 Twig builtin reflection, session cookie rotation, regex byte offsets and chained
 magic getters. Exact claims and caveats: `docs/HANDOVER.md`.
-The final expanded suite has not yet passed as one complete run on this extraction.
+The expanded 29-probe differential suite now passes on the extracted candidate.
+HTTP/database-specific suites and browser acceptance remain separate checks.
 
 ## Current limitations
 
-- Page creation fails compiling Views `Page.php`; no successful Rust create/edit/view.
+- Views class loading now passes; timestamp gap is fixed; page rendering now fails on Fiber suspension inside a Generator.
 - Optional sitemap/consent, asset aggregation and automatic cron were disabled on
   the earlier site. Do not present that as untouched Drupal CMS compatibility.
 - PHP Rust uses its development HTTP server; Coder/public routing is a separate check.

@@ -65,6 +65,10 @@ COPY patches/preg-byte-offset.patch /tmp/preg-byte-offset.patch
 RUN git apply --check /tmp/preg-byte-offset.patch && git apply /tmp/preg-byte-offset.patch
 COPY patches/chained-magic-argument.patch /tmp/chained-magic-argument.patch
 RUN git apply --check /tmp/chained-magic-argument.patch && git apply /tmp/chained-magic-argument.patch
+COPY patches/static-property-reference.patch /tmp/static-property-reference.patch
+RUN git apply --check /tmp/static-property-reference.patch && git apply /tmp/static-property-reference.patch
+COPY patches/spl-fileinfo-ctime.patch /tmp/spl-fileinfo-ctime.patch
+RUN git apply --check /tmp/spl-fileinfo-ctime.patch && git apply /tmp/spl-fileinfo-ctime.patch
 WORKDIR /src/php-rust
 ARG RUNTIME_PROFILE=release
 RUN --mount=type=cache,target=/usr/local/cargo/registry --mount=type=cache,target=/usr/local/cargo/git --mount=type=cache,target=/out CARGO_TARGET_DIR=/out cargo build --locked --profile "$RUNTIME_PROFILE" -p php-cli -p php-server && mkdir /dist && cp "/out/$RUNTIME_PROFILE/phpr" "/out/$RUNTIME_PROFILE/php-server" /dist/

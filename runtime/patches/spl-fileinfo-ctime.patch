@@ -1,0 +1,16 @@
+--- a/php-rust/crates/php-runtime/src/lower/prelude/spl.php
++++ b/php-rust/crates/php-runtime/src/lower/prelude/spl.php
+@@ -111,6 +111,13 @@
+     public function getSize() { return filesize($this->__path); }
+     public function getPerms() { return fileperms($this->__path); }
+     public function getMTime() { return filemtime($this->__path); }
++    public function getCTime(): int {
++        $time = @filectime($this->__path);
++        if ($time === false) {
++            throw new RuntimeException('SplFileInfo::getCTime(): stat failed for ' . $this->__path);
++        }
++        return $time;
++    }
+     public function isReadable() { return is_readable($this->__path); }
+     public function isWritable() { return is_writable($this->__path); }
+     public function getExtension() {

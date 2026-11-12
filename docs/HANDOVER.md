@@ -3,23 +3,20 @@
 Read AGENTS.md and `.agents/plan/current/README.md` first. This document is the
 handover for the standalone repository, not a request to resume migration work.
 
-## Exact current runtime blocker
+## Current runtime status
 
-Drupal's page creation route `/node/add/page` now gets past moderation-state
-handling but fails loading `web/core/modules/views/src/Plugin/views/display/Page.php`.
-The runtime's diagnostic logging reports:
-
-```text
-deferred decl re-lower failed .../Page.php:
-Unsupported { what: "assignment target", line: 129 }
-```
-
-The relevant code is `static::$pageRenderArray = &$element` inside a reference-
-returning static method. This is a **lowering** failure in a deferred class include,
-not the earlier `&self::getValue(...)` call-binding issue (already patched).
-The lowerer needs a minimal reproduction before changing compiler/VM code.
-Direct execution of Page.php can instead report a missing parent class: reproduce
-through the real autoloader or a two-file parent/child fixture.
+The Views `Page.php` lowering blocker is fixed by `static-property-reference.patch`.
+The original image fails the fixture with `unsupported construct (assignment target)`.
+The new development candidate matches Zend for binding, returned aliases, rebinding,
+inherited/redeclared storage, visibility, deferred include and finally execution.
+The complete 29-probe `tests/test-oob-runtime.sh` run passes. The actual Drupal Views
+class-load probe returned `bool(true)` before the final finally-only amendment.
+Browser login succeeds. The next missing `SplFileInfo::getCTime()` method is
+fixed by a separate patch and passes the combined suite. `/node/add/page` now
+fails with `cannot suspend a Fiber from within a Generator` in Renderer.php.
+The minimal `tests/probes/fiber-generator-suspend.php` passes Zend but causes
+a runtime panic (exit 255) on the current candidate. Do not claim E2E.
+See `docs/receipts/2026-11-12-fiber-generator-blocker.md` for the next work.
 
 ## Resume sequence
 
@@ -28,27 +25,20 @@ python3 scripts/check-repo.py
 python3 scripts/prepare-runtime.py
 ```
 
-Read the reconstructed `.work/php-rust/AGENTS.md` and referenced runtime process
-files. Prepare a minimal fixture using parent/child autoload and reference assignment
-into `static::$property`, including alias mutation and a reference return. Compare
-with standard PHP, then patch the correct lowering path. Do not work around it by
-editing Drupal core. Use the runtime-required single adversarial reviewer.
-
-Build using Docker after exporting the patch and updating series/manifest. In an
-installed disposable project with the new sidecar enabled, the diagnostic probe is:
+Read the reconstructed runtime's AGENTS/process files before editing. On an installed
+disposable project with the new sidecar enabled, run:
 
 ```bash
 ddev exec -s phpr env PHPR_LOG=warn phpr /dev/stdin < tests/probes/views-page-class.php
 ```
 
-For the original environment use its existing Docker image/network and the same
-probe rather than assuming a DDEV `phpr` service already exists. `PHPR_LOG=warn`
-is the runtime logger switch; `RUST_LOG` does not enable it. Avoid logging secrets.
-The probe boots Drupal using the actual autoloader, then checks the Views Page class.
-
-After it passes, retry `/node/add/page` in the browser. Continue each new runtime
-failure with a focused reproducer; never treat the next HTTP 200 as success without
-checking content. Verify dashboard and create/edit/view, then the combined suite.
+The original Coder site still uses its separate Docker comparison container, not
+this repository's prepared DDEV sidecar. Candidate image: `drupalphprust:dev-release`.
+Run `tests/test-oob-runtime.sh PROJECT_PATH IMAGE PROJECT_NAME` for the differential
+suite. `PHPR_LOG=warn` enables runtime diagnostics; `RUST_LOG` does not.
+Continue browser dashboard and create/edit/view, minimising each new failure before
+patching runtime code. Do not patch Drupal core or count error-containing HTTP 200s
+as success. Full installer and performance validation remain separate milestones.
 
 ## Evidence snapshot at extraction (2026-11-11)
 
