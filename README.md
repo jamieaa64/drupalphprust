@@ -21,11 +21,16 @@ There is no proven speed advantage and no claim that untouched Drupal CMS works.
 - [Install and use](docs/USAGE.md)
 - [Architecture and ownership](docs/ARCHITECTURE.md)
 - [DDEV / Coder contract](docs/CODER.md)
-- [Testing and performance comparison](docs/TESTING.md)
+- [Comparison study: performance, cost, security and agent workflows](docs/COMPARISON.md)
+- [Testing and acceptance](docs/TESTING.md)
 - [Discrete upstream submissions](docs/UPSTREAM.md)
 - [GitHub handoff](docs/GITHUB.md)
 
 ## Install
+
+This setup is experimental and has not yet passed a complete fresh-install smoke
+test. You need working DDEV/Docker, Git, Bash and Python 3; see
+[prerequisites](docs/USAGE.md).
 
 From the parent directory where you want the project created:
 
@@ -51,9 +56,26 @@ Both choices install the same Drupal CMS and PHP Rust service. Coder is only the
 host; no new template or API key is required in this repository. Follow
 [usage](docs/USAGE.md) and [Coder access instructions](docs/CODER.md).
 
-These source changes must be published to GitHub's default branch (`main`) for
-the exact default command to pick them up. A branch-specific `--ref` is only for
-pre-release testing, not the normal setup command.
+The default command reads `main`; the installer configuration and tracker changes
+are now published there. A branch-specific `--ref` is only for pre-release testing,
+not the normal setup command.
+
+## Open the tracker
+
+GitHub displays `tracker.html` as source rather than running the page. In your
+local source checkout, open that file in a browser for a standalone snapshot, or
+run this from the repository root for live Markdown updates:
+
+```bash
+python3 scripts/tracker.py --serve
+```
+
+Open `http://127.0.0.1:8765` in your browser or site window. The live tracker reads
+the plan documents every five seconds. Agents update those documents and regenerate
+the standalone snapshot; see [tracker instructions](docs/TRACKER.md).
+
+A [Coder tracker button](docs/CODER-TRACKER.md) is planned separately and is not
+created automatically by installation yet.
 
 ## Portable runtime work
 
