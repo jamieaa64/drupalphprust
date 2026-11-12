@@ -48,7 +48,9 @@ with tempfile.TemporaryDirectory(prefix='drupalphprust-source-') as temporary:
     command = ['bash', installer, str(source), '--config', 'drupalphprust', '--name', dest.name]
     if a.yes:
         command.append('--yolo')
-    subprocess.run(command, cwd=dest.parent, env=env, check=True)
+    result = subprocess.run(command, cwd=dest.parent, env=env)
+    if result.returncode:
+        raise SystemExit(f'Installer failed (exit {result.returncode}). Partial site preserved at {dest}; inspect the error before retrying. No existing files are deleted.')
 marker = dest/'.ddev/.runtime-ready'
 if not marker.is_file() or not marker.read_text().strip():
     raise SystemExit('Installer finished without runtime readiness. Inspect its hook error; see docs/USAGE.md for recovery.')

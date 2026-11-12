@@ -70,6 +70,14 @@ For a published branch add `--ref BRANCH`. For unpublished development use our
 wrapper: raw upstream local-path installation copies the whole directory,
 including ignored files, so do not point it at a dirty working checkout.
 
+## Host prerequisite failures
+
+If DDEV reports an unresolved `NAME.ddev.site` hostname and asks for administrator
+privileges, run the exact `ddev-hostname` command it displays in your own terminal.
+Do not give an agent your password. A failed fresh install may leave a partial
+folder: inspect and preserve it before choosing a new destination or retrying.
+The launcher never deletes or resets an existing directory to force a retry.
+
 ## Rebuild or recover a failed hook
 
 From the installed project, after checking the error:

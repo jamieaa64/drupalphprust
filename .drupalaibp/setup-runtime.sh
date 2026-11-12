@@ -4,7 +4,9 @@ set -euo pipefail
 [[ -f runtime/Dockerfile && -f scripts/enable-runtime.sh && -f .ddev/config.yaml ]] || {
   echo 'Expected the drupalphprust source overlay in the installed project.' >&2; exit 1;
 }
-target="${DRUPALPHPRUST_TARGET:-local}"
+target="${DRUPALPHPRUST_TARGET:-}"
+if [[ -z "$target" && -f .ddev/.runtime-target ]]; then target="$(cat .ddev/.runtime-target)"; fi
+target="${target:-local}"
 case "$target" in local|coder) ;; *) echo 'Target must be local or coder' >&2; exit 2;; esac
 rm -f .ddev/.runtime-ready
 bash scripts/build-runtime.sh dev-release

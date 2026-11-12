@@ -71,4 +71,28 @@ if [[ "${TEST_NO_MARKER:-0}" != 1 ]]; then echo ready > "$5/.ddev/.runtime-ready
         self.assertNotEqual(result.returncode,0)
         self.assertFalse((self.base/'site').exists())
 
+class RuntimePortTests(unittest.TestCase):
+    def test_port_survives_rebuild_and_unowned_file_is_protected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp)
+            for directory in ['scripts','runtime','.ddev','web','bin']:
+                (root/directory).mkdir()
+            shutil.copy2(ROOT/'scripts/enable-runtime.sh',root/'scripts/enable-runtime.sh')
+            shutil.copy2(ROOT/'runtime/docker-compose.phpr.yaml',root/'runtime/docker-compose.phpr.yaml')
+            (root/'.ddev/config.yaml').write_text('name: fixture\n')
+            (root/'web/.ht.router.php').write_text('<?php')
+            for name in ['docker','ddev']:
+                f=root/'bin'/name; f.write_text('#!/bin/sh\nexit 0\n'); f.chmod(0o755)
+            env=dict(os.environ,PATH=str(root/'bin')+os.pathsep+os.environ['PATH'])
+            env.pop('PHPR_HTTP_PORT',None)
+            command=['bash',str(root/'scripts/enable-runtime.sh')]
+            subprocess.run(command,env=dict(env,PHPR_HTTP_PORT='18091'),check=True,capture_output=True)
+            subprocess.run(command,env=env,check=True,capture_output=True)
+            service=root/'.ddev/docker-compose.phpr.yaml'
+            self.assertIn('127.0.0.1:18091:8090',service.read_text())
+            service.write_text('# user owned\n')
+            result=subprocess.run(command,env=env,capture_output=True)
+            self.assertNotEqual(result.returncode,0)
+            self.assertEqual(service.read_text(),'# user owned\n')
+
 if __name__=='__main__': unittest.main()

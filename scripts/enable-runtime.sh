@@ -11,7 +11,17 @@ target=.ddev/docker-compose.phpr.yaml
 if [[ -f "$target" ]] && ! grep -q '^# Managed by drupalphprust$' "$target"; then
   echo "Refusing to overwrite unowned $target" >&2; exit 1
 fi
-port="${PHPR_HTTP_PORT:-18090}"
+port="${PHPR_HTTP_PORT:-}"
+if [[ -z "$port" ]]; then
+  port="$(python3 - "$target" <<'PORT'
+from pathlib import Path
+import re,sys
+path=Path(sys.argv[1])
+match=re.search(r'127\.0\.0\.1:([0-9]+):8090',path.read_text()) if path.exists() else None
+print(match.group(1) if match else '18090')
+PORT
+)"
+fi
 [[ "$port" =~ ^[0-9]+$ ]] && (( port >= 1024 && port <= 65535 )) || { echo 'Invalid PHPR_HTTP_PORT' >&2; exit 2; }
 python3 - "$profile" "$port" <<'PY'
 from pathlib import Path
