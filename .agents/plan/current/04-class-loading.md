@@ -1,6 +1,6 @@
 # 04. Class loading and serialization
 
-Status: patched
+Status: partial
 
 Destination: PHP Rust
 

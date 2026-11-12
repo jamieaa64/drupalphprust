@@ -4,7 +4,7 @@ import argparse, json, re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
-STATUSES = {'done', 'active', 'blocked', 'pending', 'patched', 'deferred'}
+STATUSES = {'done', 'active', 'blocked', 'pending', 'partial', 'deferred'}
 
 def snapshot(root=ROOT):
     files = [root/'PROGRESS.md', *sorted((root/'.agents/plan').rglob('*.md')), *sorted((root/'docs').rglob('*.md'))]

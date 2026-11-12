@@ -1,25 +1,34 @@
-# 01. Fiber / Generator support
+# 01. Complete Drupal runtime support
 
 Status: active
 
-Destination: PHP Rust
+Destination: PHP Rust + this repository
 
-Current blocker: suspending a Fiber inside a Generator panics. Earlier Fiber dispatch fixes are already patched.
+Fiber/Generator suspension is the next reproduced blocker, not a complete inventory
+of remaining defects. Continue through Drupal and minimise each new failure.
 
 ## Work
 
-- Preserve both continuations without replaying side effects.
-- Handle nested suspension, exceptions and finally; prepare a focused continuation patch.
+- Fix Fiber/Generator continuations, including nested suspension, exceptions and finally.
+- Fix further reproduced runtime failures separately; do not patch Drupal to conceal them.
 
 ## Test / finish
 
-- Match Zend on fiber-generator-suspend.php and nested/repeated suspension fixtures.
-- Obtain runtime review; rerun Drupal rendering and the combined probes.
+- [x] Fix the Views static-property reference compiler gap and add its regression.
+- [ ] Match Zend on Fiber/Generator fixtures and obtain runtime review.
+- [ ] Verify the dashboard and page creation form.
+- [ ] Verify create → edit → view through PHP Rust.
+- [ ] Run all regressions against the final combined build; the earlier 29-probe pass is not this final gate.
 
 ## Upstream
 
-Not submitted; prepare discrete fixes. Submit only after end-to-end acceptance and user approval.
+- [ ] Finish separate local contribution units with fixtures across tasks 02–08.
+- [ ] Review submissions after end-to-end success and user approval.
+
+Then [package a reusable seed](11-fast-seed.md) and [compare startup/page performance](12-benchmark.md).
+The superseded checklist came from the old drupal-runtime-comparison/PROGRESS.md
+(11 November); its unchecked Views item is now resolved, not a new blocker.
 
 Patches: fiber-static-dispatch.patch, fiber-callback-trampoline.patch
 
-[Overall plan](README.md) · [Next](02-pdo-mysql.md) · [Evidence / guidance](../../../docs/receipts/2026-11-12-fiber-generator-blocker.md)
+[Overall plan](README.md) · [Next](02-pdo-mysql.md) · [Evidence / guidance](../../../docs/HANDOVER.md) · [Fiber reproducer](../../../docs/receipts/2026-11-12-fiber-generator-blocker.md)

@@ -5,10 +5,11 @@ install it through DDEV / One Line Installer, then measure it against Zend.
 Coder is optional. Migration tooling, OAuth and MCP are excluded.
 
 These are agent implementation/contribution tasks. Tests are acceptance criteria
-inside each task, not separate project milestones. **Patched** means local fixes
-exist; it does not mean submitted, upstream-ready or end-to-end complete.
+inside each task, not separate project milestones. **Partial** means some local fixes exist but implementation, coverage or contribution
+work remains. No runtime family is complete. Fiber is the next reproduced blocker,
+not evidence that the rest of Drupal works.
 
-1. [Fiber / Generator support](01-fiber-generators.md)
+1. [Complete Drupal runtime support](01-fiber-generators.md)
 2. [PDO MySQL driver](02-pdo-mysql.md)
 3. [Iterators and filesystem](03-iterators-filesystem.md)
 4. [Class loading and serialization](04-class-loading.md)

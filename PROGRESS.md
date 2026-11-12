@@ -2,8 +2,8 @@
 
 Updated: 2026-11-12
 
-**Now:** Fix Fiber / Generator suspension; finish portable installation and Coder tracker integration.
+**Next blocker:** Fiber / Generator suspension. This is not the only remaining work.
 
-**Patched locally:** PDO MySQL, iterators, class loading, references, rendering and sessions. No upstream submissions yet.
+**Still open:** Final Drupal flow and combined regressions; reference/reflection coverage; partial-request server blocking; separate upstream contributions. See [runtime completion](.agents/plan/current/01-fiber-generators.md).
 
-**Evidence:** 31 patches reconstruct; 29 runtime probes pass. Full Drupal behavior, fresh installation and speed comparisons remain unverified.
+**Partial evidence:** 31 local patches; 29 earlier runtime probes passed. No end-to-end success or upstream submissions. Installation, Coder integration, clean seed and performance work remain; optional CMS gaps are deferred.

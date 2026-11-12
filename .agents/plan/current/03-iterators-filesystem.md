@@ -1,6 +1,6 @@
 # 03. Iterators and filesystem
 
-Status: patched
+Status: partial
 
 Destination: PHP Rust
 

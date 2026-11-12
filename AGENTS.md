@@ -18,7 +18,7 @@ Working rules:
 - Keep `PROGRESS.md` short. Update the relevant numbered task in `.agents/plan/current/`
   after meaningful verified progress; each task owns its status, work and tests.
   Track implementation and contribution work, with tests inside each task. Distinguish
-  patched locally from upstream submission; keep every runtime patch assigned to a task.
+  partial local fixes from completed runtime support and upstream submission; keep every runtime patch assigned to a task.
   Regenerate `tracker.html` with `python3 scripts/tracker.py` after Markdown changes
   under PROGRESS.md, docs/ or .agents/plan/. The live preview reads those files directly.
 - Update the current plan after meaningful verified progress.

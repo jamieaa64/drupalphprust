@@ -1,15 +1,15 @@
 # 07. Sessions and HTTP serving
 
-Status: patched
+Status: partial
 
 Destination: PHP Rust
 
-Local patches address preconnect handling and session-cookie regeneration.
+Preconnect and session-cookie fixes exist, but partial HTTP requests can still block the sequential server. This is not a production-ready serving stack.
 
 ## Work
 
 - Prepare separate server and session contributions.
-- Review cookie regeneration and connection handling beyond the happy path.
+- Reproduce partial-request blocking with a bounded test; design timeout/connection handling separately.
 
 ## Test / finish
 

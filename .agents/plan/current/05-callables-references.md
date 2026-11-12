@@ -1,15 +1,15 @@
 # 05. Callables and references
 
-Status: patched
+Status: partial
 
 Destination: PHP Rust
 
-Local fixes cover callable dispatch and alias preservation, including static-property references.
+Specific dispatch/alias fixes exist. Named, spread and dynamic static-property reference-argument paths remain unverified; do not infer full reference compatibility.
 
 ## Work
 
 - Prepare focused dispatch and reference contributions; document dependencies.
-- Review alias lifetime across calls, returns, ArrayAccess and finally.
+- Probe named/spread/dynamic reference arguments; implement each confirmed gap separately.
 
 ## Test / finish
 

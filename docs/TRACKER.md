@@ -23,8 +23,8 @@ python3 scripts/tracker.py
 
 Edit PROGRESS.md for the short summary. Edit numbered Markdown files under
 `.agents/plan/current/` for implementation work, acceptance checks and contribution
-ownership. Statuses: active, patched, blocked, pending, deferred, done. **Patched**
-means a local fix exists, not finished upstream. Every runtime patch belongs to one
+ownership. Statuses: active, partial, blocked, pending, deferred, done. **Partial**
+means specific fixes exist but implementation, coverage or contribution work remains. Every runtime patch belongs to one
 task; the patch inventory stays in Markdown while the UI keeps it out of the way.
 Keep detailed logs in receipts. Overall, adjacent-task, future and archive links
 connect the documents. Agents regenerate the snapshot after plan changes.

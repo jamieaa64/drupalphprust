@@ -1,6 +1,6 @@
 # 02. PDO MySQL driver
 
-Status: patched
+Status: partial
 
 Destination: PHP Rust
 

@@ -1,14 +1,14 @@
 # 06. Rendering and Twig semantics
 
-Status: patched
+Status: partial
 
 Destination: PHP Rust
 
-Stringable, reflection, object snapshots, regex offsets and magic-call fixes are patched locally.
+Specific rendering fixes exist. Builtin reflection descriptors cover only six named functions; broader reflection and the complete dashboard remain unverified.
 
 ## Work
 
-- Prepare one contribution per behavior with a minimal PHP reproducer.
+- Audit reflection coverage needed by Drupal; implement missing descriptors with fixtures.
 - Resolve remaining rendering defects revealed after the Fiber fix in separate patches.
 
 ## Test / finish
