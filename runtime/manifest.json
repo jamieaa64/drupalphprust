@@ -129,6 +129,10 @@
     {
       "file": "xmlwriter-memory.patch",
       "sha256": "8cdd88fc1f019c4cd4f2ee519b69e3adfd8efa77fba0419ba3d1d59a1d013a26"
+    },
+    {
+      "file": "callable-unpack-reference.patch",
+      "sha256": "74459b0f47a92ea72c45889ce2dc928d15127050f0c72e2ccf78bf68df77c89e"
     }
   ]
 }

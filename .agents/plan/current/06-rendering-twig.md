@@ -33,6 +33,10 @@ content and diagnostics; a successful HTTP status alone is insufficient.
 
 ## Work
 
+- Patched dynamic callable unpacking references; the Mercury font prefix is
+  correct after rebuilding Drupal caches. Array-copy isolation is tested.
+  XPath warnings, unresolved tokens and the missing-route Fiber stall remain.
+  See [receipt](../../../docs/receipts/2026-11-12-callable-unpack-reference.md).
 - Audit reflection coverage needed by Drupal; implement missing descriptors with fixtures.
 - Resolve remaining rendering defects revealed after the Fiber fix in separate patches.
 
@@ -47,6 +51,6 @@ Upstream status: Not submitted.
 
 Prepare discrete fixes; submit only after end-to-end acceptance and user approval.
 
-Patches: strtr-stringable-map.patch, concat-stringable.patch, field-concat-stringable.patch, builtin-reflection.patch, object-vars-snapshot.patch, preg-byte-offset.patch, chained-magic-argument.patch
+Patches: strtr-stringable-map.patch, concat-stringable.patch, field-concat-stringable.patch, builtin-reflection.patch, object-vars-snapshot.patch, preg-byte-offset.patch, chained-magic-argument.patch, callable-unpack-reference.patch
 
 [Overall plan](README.md) · [Previous](05-callables-references.md) · [Next](07-sessions-http.md) · [Evidence / guidance](../../../docs/UPSTREAM.md)

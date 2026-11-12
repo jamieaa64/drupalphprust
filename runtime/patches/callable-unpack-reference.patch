@@ -1,0 +1,86 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/calls.rs b/php-rust/crates/php-runtime/src/vm/calls.rs
+--- a/php-rust/crates/php-runtime/src/vm/calls.rs
++++ b/php-rust/crates/php-runtime/src/vm/calls.rs
+@@ -253,7 +253,9 @@
+ 
+ pub(super) fn args_from_array_value(v: Zval) -> Vec<Zval> {
+     match v.deref_clone() {
+-        Zval::Array(a) => a.iter().map(|(_, v)| v.deref_clone()).collect(),
++        // Preserve reference elements until the callee's parameter binder decides
++        // whether to retain the alias or decay it for a by-value parameter.
++        Zval::Array(a) => a.iter().map(|(_, v)| v.clone()).collect(),
+         _ => Vec::new(),
+     }
+ }
+diff --git a/php-rust/crates/php-runtime/src/vm/run.rs b/php-rust/crates/php-runtime/src/vm/run.rs
+--- a/php-rust/crates/php-runtime/src/vm/run.rs
++++ b/php-rust/crates/php-runtime/src/vm/run.rs
+@@ -2555,14 +2555,21 @@
+                     }
+                     self.frames[top].stack.push(arr);
+                 }
+-                Op::ArrayAppendSpread => {
++                Op::ArrayAppendSpread { preserve_refs } => {
+                     let src = self.frames[top].stack.pop().expect("ArrayAppendSpread source");
+                     // Collect the (int-key → append, string-key → insert) pairs to
+                     // merge. A generator is driven to completion (its keys are
+                     // re-yielded verbatim, so honour them like an array's).
+                     let pairs: Vec<(Key, Zval)> = match src.deref_clone() {
+                         Zval::Array(s) => {
+-                            s.iter().map(|(k, v)| (k.clone(), v.deref_clone())).collect()
++                            // Calls retain argument aliases; literals use normal array
++                            // copy semantics, including singleton-reference separation.
++                            let copy;
++                            let source = if *preserve_refs { s.as_ref() } else {
++                                copy = s.as_ref().clone();
++                                &copy
++                            };
++                            source.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+                         }
+                         Zval::Generator(rc) => {
+                             let mut out = Vec::new();
+diff --git a/php-rust/crates/php-runtime/src/bytecode.rs b/php-rust/crates/php-runtime/src/bytecode.rs
+--- a/php-rust/crates/php-runtime/src/bytecode.rs
++++ b/php-rust/crates/php-runtime/src/bytecode.rs
+@@ -788,7 +788,7 @@
+     /// stack (PAR): integer keys are re-indexed (appended), string keys inserted
+     /// (overwriting). `src` is an array; a generator is driven to completion. Used
+     /// to build the runtime argument array for a spread call `f(...$src)`.
+-    ArrayAppendSpread,
++    ArrayAppendSpread { preserve_refs: bool },
+     /// `[argsArray] -> [ret]` — call user function `func` with arguments taken
+     /// from a runtime array (PAR, `f(...$arr)`): the array's values are bound to
+     /// the callee's parameters in order (string keys — named-via-spread — are not
+diff --git a/php-rust/crates/php-runtime/src/compile/expr.rs b/php-rust/crates/php-runtime/src/compile/expr.rs
+--- a/php-rust/crates/php-runtime/src/compile/expr.rs
++++ b/php-rust/crates/php-runtime/src/compile/expr.rs
+@@ -263,7 +263,7 @@
+                     // (int keys renumbered, string keys preserved; Traversables too).
+                     if let ExprKind::Spread(src) = &el.value.kind {
+                         self.expr(src)?;
+-                        self.emit(Op::ArrayAppendSpread);
++                        self.emit(Op::ArrayAppendSpread { preserve_refs: false });
+                         continue;
+                     }
+                     if let Some(k) = &el.key {
+@@ -1706,7 +1706,7 @@
+             match &a.kind {
+                 ExprKind::Spread(src) => {
+                     self.expr(src)?;
+-                    self.emit(Op::ArrayAppendSpread);
++                    self.emit(Op::ArrayAppendSpread { preserve_refs: true });
+                 }
+                 // A plain-variable component rides as a REFERENCE (SEND_VAR_EX,
+                 // like `push_dyn_args`): the callee isn't known here, so a by-ref
+diff --git a/php-rust/crates/php-runtime/src/vm/census.rs b/php-rust/crates/php-runtime/src/vm/census.rs
+--- a/php-rust/crates/php-runtime/src/vm/census.rs
++++ b/php-rust/crates/php-runtime/src/vm/census.rs
+@@ -108,7 +108,7 @@
+         Op::ArrayInit => 55,
+         Op::ArrayPush => 56,
+         Op::ArrayInsert => 57,
+-        Op::ArrayAppendSpread => 58,
++        Op::ArrayAppendSpread { .. } => 58,
+         Op::CallArgs { .. } => 59,
+         Op::FetchDim => 60,
+         Op::CoalesceFetchDim => 61,

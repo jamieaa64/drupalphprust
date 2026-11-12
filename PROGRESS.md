@@ -21,8 +21,10 @@ prepared and Terraform-validated, not published. [Receipt](docs/receipts/2026-11
 
 **Current installation:** XMLWriter homepage blocker fixed locally. The unchanged PHP Rust homepage returns HTTP 200 and renders the expected hero; standard PHP still responds successfully. OO memory XMLWriter passes three Zend parity fixtures. [Task 16](.agents/plan/current/16-xmlwriter.md) · [Receipt](docs/receipts/2026-11-12-xmlwriter-memory.md). Earlier scoped-site Fiber / Generator suspension remains open.
 
+**Current browser blockers:** The font-prefix bug is fixed by dynamic callable-reference preservation, verified after clearing render caches. Missing-route Fiber stalling, XPath namespace warnings and unresolved tokens remain; full browser acceptance fails. [Receipt](docs/receipts/2026-11-12-callable-unpack-reference.md).
+
 **Still open:** Final Drupal flow and combined regressions; reference/reflection coverage; partial-request server blocking; separate upstream contributions. See [runtime completion](.agents/plan/current/01-fiber-generators.md).
 
-**Test evidence:** 32 local patches; all 32 combined runtime probes pass on the XMLWriter candidate. No end-to-end success or upstream submissions. Local installation and tracker launch are verified; named runtime links resolve after user-managed DNS repair; automatic local hostname setup is now implemented; a fresh install of the amended hooks remains untested. Coder integration, clean seed and performance remain; optional CMS gaps are deferred.
+**Test evidence:** 33 local patches; all 33 combined runtime probes pass on the XMLWriter candidate. No end-to-end success or upstream submissions. Local installation and tracker launch are verified; named runtime links resolve after user-managed DNS repair; automatic local hostname setup is now implemented; a fresh install of the amended hooks remains untested. Coder integration, clean seed and performance remain; optional CMS gaps are deferred.
 
 **Research alongside fixes:** [Upstream submission process](.agents/plan/current/13-upstream-process.md) and [comparisons beyond speed](docs/COMPARISON.md), separating today's behavior from Drupal-change opportunities.

@@ -30,3 +30,4 @@ chained-magic-argument.patch
 static-property-reference.patch
 spl-fileinfo-ctime.patch
 xmlwriter-memory.patch
+callable-unpack-reference.patch

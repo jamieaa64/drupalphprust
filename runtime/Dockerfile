@@ -71,6 +71,8 @@ COPY patches/spl-fileinfo-ctime.patch /tmp/spl-fileinfo-ctime.patch
 RUN git apply --check /tmp/spl-fileinfo-ctime.patch && git apply /tmp/spl-fileinfo-ctime.patch
 COPY patches/xmlwriter-memory.patch /tmp/xmlwriter-memory.patch
 RUN git apply --check /tmp/xmlwriter-memory.patch && git apply /tmp/xmlwriter-memory.patch
+COPY patches/callable-unpack-reference.patch /tmp/callable-unpack-reference.patch
+RUN git apply --check /tmp/callable-unpack-reference.patch && git apply /tmp/callable-unpack-reference.patch
 WORKDIR /src/php-rust
 ARG RUNTIME_PROFILE=release
 RUN --mount=type=cache,target=/usr/local/cargo/registry --mount=type=cache,target=/usr/local/cargo/git --mount=type=cache,target=/out CARGO_TARGET_DIR=/out cargo build --locked --profile "$RUNTIME_PROFILE" -p php-cli -p php-server && mkdir /dist && cp "/out/$RUNTIME_PROFILE/phpr" "/out/$RUNTIME_PROFILE/php-server" /dist/

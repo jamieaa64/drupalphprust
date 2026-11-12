@@ -10,6 +10,13 @@ its homepage and anonymous login form after task 16's XMLWriter fix; authenticat
 create/edit/view still needs validation. Continue through Drupal and minimise each
 new failure. See the [XMLWriter receipt](../../../docs/receipts/2026-11-12-xmlwriter-memory.md).
 
+## Current browser evidence
+
+The missing-font URL enters a Canvas 404 render loop whose child Fiber reports
+running after control returns to its caller. A bounded nested-render fixture also
+panics on Generator/Fiber suspension; the exact connection is not yet established.
+See [current receipt](../../../docs/receipts/2026-11-12-callable-unpack-reference.md).
+
 ## Work
 
 - Fix Fiber/Generator continuations, including nested suspension, exceptions and finally.

@@ -38,6 +38,12 @@ private routes/tunnels. No Rust language fix was made in this installer change.
 
 ## Current runtime status
 
+Latest browser status: dynamic callable-reference preservation fixes the missing
+Mercury font prefix after cache rebuild. The missing-route Fiber loop, namespace
+XPath warnings and unresolved tokens still fail browser acceptance. See the
+[current reproduction and patch receipt](receipts/2026-11-12-callable-unpack-reference.md).
+A homepage hero observation alone does not prove the complete page works.
+
 The Views `Page.php` lowering blocker is fixed by `static-property-reference.patch`.
 The original image fails the fixture with `unsupported construct (assignment target)`.
 The new development candidate matches Zend for binding, returned aliases, rebinding,

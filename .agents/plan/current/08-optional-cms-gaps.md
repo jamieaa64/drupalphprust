@@ -1,12 +1,19 @@
 # 08. Deferred CMS compatibility
 
-Status: deferred
+Status: partial
 
 Destination: PHP Rust
 
 Limited DOM/stream patches exist; XPath, stream writes and cron gaps remain.
 XMLWriter memory support is now owned and patched in task 16; full XMLWriter
 API coverage remains outside that focused contribution.
+
+## Current browser blocker
+
+Cold homepage rendering exposes DOMXPath warnings. The namespace-axis expression
+used by Masterminds' serializer fails the independent
+`tests/probes/dom-namespace-axis.php` fixture. Namespace XPath now blocks baseline
+acceptance; unrelated optional CMS gaps remain deferred.
 
 ## Work
 

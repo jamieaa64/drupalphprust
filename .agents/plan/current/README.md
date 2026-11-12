@@ -30,7 +30,9 @@ Upstream status is separate: not submitted, prepared, submitted, then merged
 15. [Partial HTTP request handling](15-http-partial-requests.md)
 16. [Implement XMLWriter for out-of-box Drupal CMS](16-xmlwriter.md)
 
-The fresh installation homepage now renders after the XMLWriter fix (task 16);
+The fresh homepage renders its hero after the XMLWriter fix (task 16), but cold
+browser acceptance fails on XPath warnings, unresolved tokens and missing-route
+Fiber stalling. The font-prefix defect is patched in task 06;
 the earlier scoped Fiber/Generator blocker and authenticated flow remain open. Installer and Coder integration can
 progress independently. The bundled DDEV add-on now requires DDEV 1.25.5+,
 uses native deletion and a separate tracker hostname; full fresh-install
