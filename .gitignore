@@ -68,5 +68,13 @@
 .ddev/addon-metadata/
 .ddev/commands/host/phpr
 .ddev/commands/host/tracker
+.ddev/commands/host/serena-mcp
+.ddev/.serena-client.json
+.ddev/.serena-setup-complete
+/.codex/config.toml
+/.mcp.json
+/setup-serena.sh
+.ddev/commands/web/codex
+.ddev/commands/web/claude
 /.ddev/config.php-rust-version.yaml
 /check-ddev-version.sh

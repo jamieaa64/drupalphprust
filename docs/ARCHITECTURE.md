@@ -10,7 +10,8 @@ One Line Installer + this repository's .drupalaibp config
        |-- web: nginx/PHP-FPM (standard PHP control, Composer and Drush)
        |-- db: MariaDB
        |-- phpr: PHP Rust development HTTP server + CLI
-       `-- tracker: static tracker on tracker.<project-host>
+       |-- tracker: static tracker on tracker.<project-host>
+       `-- serena: pinned Rust analysis tools + agent MCP connections
 ```
 
 The root `.ddev/config.yaml` belongs to the installer/generated project and is
@@ -22,6 +23,11 @@ builds PHP Rust from `runtime/Dockerfile`, with a project-specific image tag and
 Compose ownership labels. Standard PHP remains the default web service.
 The static tracker has no PHP interpreter or database configuration and mounts
 only generated tracker content. OLI reads its exact URL through `LAUNCH_PATH`.
+
+The Serena developer service shares project source and has no public route.
+Host agents connect over STDIO through DDEV; container agents use internal HTTP.
+Installer choices configure Codex/Claude project settings and optionally install
+their DDEV add-ons. See [agent setup](SERENA.md).
 
 PHP Rust reads the same project volume and database as Zend. This is useful for
 correctness diagnosis, but shared caches contaminate an independent performance

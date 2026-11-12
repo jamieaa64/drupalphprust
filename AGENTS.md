@@ -46,3 +46,25 @@ Working rules:
 
 This repository supersedes migration-oriented notes from the original parent folder.
 Its local parent location is historical only and is not a runtime dependency.
+
+## Serena for runtime work
+
+The bundled DDEV `serena` service supplies Serena, rust-analyzer and the pinned
+Rust toolchain. Host installations of those tools are not required. The One Line
+Installer asks which client to configure (Codex, Claude Code, both or manual) and
+where it runs (host/Coder VM or inside DDEV). See `docs/SERENA.md`.
+
+- Before editing Rust, connect to the project's `drupalphprust-serena` MCP server
+  and call `initial_instructions`. Use its symbol navigation/editing tools and
+  continue following the reconstructed upstream AGENTS/process files.
+- Host agents use `bash /absolute/project/path/scripts/serena-mcp.sh` (also
+  available as `ddev serena-mcp`). Inside-DDEV agents use the internal URL
+  `http://serena:9121/mcp`; do not publish this endpoint or add a router hostname.
+- Serena sees `/var/www/html/.work/php-rust` as its project root. Tool-relative
+  paths start with `php-rust/`; they are not macOS host paths.
+- Run `python3 scripts/setup-serena.py --client codex --location host` to prepare
+  the checkout and configure an existing installation. Use `claude` or `both`
+  and `--location ddev --install-agents` when appropriate. User handles sign-in.
+- Trust/open the project and reconnect MCP in the client after setup. If tools
+  are absent, diagnose the connection; do not silently bypass upstream's Serena
+  requirement. Never replace global agent configuration or read credentials.

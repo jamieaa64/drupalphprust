@@ -24,6 +24,11 @@ Local installation completed. Tracker landing and completion text are implemente
 
 ## Test / finish
 
+- Serena service and OLI choices implemented: Codex, Claude Code, both or manual;
+  host/Coder VM or DDEV. STDIO and internal HTTP Rust symbol tests pass locally.
+  Existing config is preserved; users handle trust and sign-in. Fresh OLI/Coder and
+  authenticated client sessions remain unverified. See [Serena receipt](../../../docs/receipts/2026-11-12-serena-ddev.md).
+
 - [x] Observe completed installation and running web/phpr services.
 - [x] Verify actual OLI launch opens the tracker; final message lists all three URLs.
 - [x] Verify distinct runtime identities with explicit local DNS resolution.

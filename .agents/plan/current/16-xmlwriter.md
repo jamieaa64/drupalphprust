@@ -45,8 +45,10 @@ The user handles authentication and pushes; no upstream submission yet.
   Standard PHP 8.4.27 / libxml 2.9.14 passes with empty stderr; installed Rust exits
   255 at the subclass declaration. The fixture covers escaping, UTF-8, inherited
   construction, output retention/draining and reopening a memory writer.
-- Rust editing awaits resolution of the upstream Serena-only tooling rule:
-  Serena is unavailable in this session. No runtime patch or class stub added.
+- Serena tooling is now supplied by the bundled DDEV service, with verified Rust
+  symbol lookup over STDIO and internal HTTP. Reconnect the agent to the generated
+  project MCP configuration before implementation. No runtime patch or class stub
+  has been added. See [agent setup](../../../docs/SERENA.md).
 
 See [continuation receipt](../../../docs/receipts/2026-11-12-phprusttest1-xmlwriter.md).
 

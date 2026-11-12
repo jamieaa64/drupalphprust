@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#ddev-generated
+## Description: Connect an MCP agent to containerised Serena for PHP Rust
+## Usage: serena-mcp [Serena server options]
+## Example: ddev serena-mcp
+set -euo pipefail
+exec bash scripts/serena-mcp.sh "$@"

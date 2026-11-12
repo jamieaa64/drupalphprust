@@ -10,6 +10,11 @@ upgrade commands; DDEV’s version constraint blocks unsupported service starts.
 
 **Try it and take over:** [What works, known failures and next steps](docs/TRY-IT.md). The environment can be shared while compatibility tasks remain open.
 
+**Agent tooling:** Containerised Serena and pinned Rust analysis tools; installer
+choices for Codex/Claude and host/DDEV execution. Both MCP transports pass Rust
+symbol lookup locally. Fresh Coder and authenticated clients remain unverified.
+[Setup](docs/SERENA.md) · [Receipt](docs/receipts/2026-11-12-serena-ddev.md).
+
 **Current installation:** PHP Rust homepage fails with missing `XMLWriter` ([active task 16](.agents/plan/current/16-xmlwriter.md)); standard PHP responds successfully. Earlier scoped-site blocker: Fiber / Generator suspension. See [installation receipt](docs/receipts/2026-11-12-tracker-landing.md).
 
 **Still open:** Final Drupal flow and combined regressions; reference/reflection coverage; partial-request server blocking; separate upstream contributions. See [runtime completion](.agents/plan/current/01-fiber-generators.md).

@@ -1,0 +1,8 @@
+# Managed by drupalphprust. Copied into the reconstructed runtime only.
+project_name: php-rust
+language_servers: [rust]
+language_backend: LSP
+agent_interface: tools
+ls_workspace_folders: [php-rust]
+ignore_all_files_in_gitignore: false
+ignored_paths: ["**/target/**", "**/.git/**", "**/.serena/**"]

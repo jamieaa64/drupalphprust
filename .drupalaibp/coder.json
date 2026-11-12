@@ -12,7 +12,8 @@
   "launch_path": "/",
   "agents_md": [
     "This is the drupalphprust runtime compatibility project, not a migration agent. Read AGENTS.md and .agents/plan/current/README.md before work.",
-    "Use DDEV for Composer, Drush and the standard PHP control. PHP Rust runs in the phpr service. No end-to-end compatibility or speed claim has been established."
+    "Use DDEV for Composer, Drush and the standard PHP control. PHP Rust runs in the phpr service. No end-to-end compatibility or speed claim has been established.",
+    "Runtime contributors: use the bundled DDEV Serena service, connect the selected agent as documented in docs/SERENA.md, and call initial_instructions before Rust editing. Client trust and authentication remain user actions."
   ],
   "hooks": {
     "before_configure_ddev": [
@@ -32,6 +33,11 @@
         "script": "./setup-tracker.sh",
         "where": "host",
         "weight": 60
+      },
+      {
+        "script": "./setup-serena.sh",
+        "where": "host",
+        "weight": 55
       }
     ],
     "before_agent_handoff": [
@@ -54,6 +60,28 @@
       ],
       "default": "local",
       "value": "coder"
+    },
+    {
+      "env": "DRUPALPHPRUST_AGENT",
+      "type": "single-select-options",
+      "label": "Connect Serena to which coding agent?",
+      "select_options": [
+        "codex",
+        "claude",
+        "both",
+        "manual"
+      ],
+      "default": "codex"
+    },
+    {
+      "env": "DRUPALPHPRUST_AGENT_LOCATION",
+      "type": "single-select-options",
+      "label": "Where will the agent run? host = this computer or Coder VM; ddev = install inside the web container",
+      "select_options": [
+        "host",
+        "ddev"
+      ],
+      "default": "ddev"
     }
   ],
   "replace_welcome_text": [

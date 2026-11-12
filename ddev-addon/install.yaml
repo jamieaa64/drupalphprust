@@ -5,6 +5,7 @@ project_files:
   - config.php-rust-lifecycle.yaml
   - commands/host/phpr
   - commands/host/tracker
+  - commands/host/serena-mcp
 pre_install_actions:
   - |
     test -f scripts/configure-runtime.py && test -f runtime/Dockerfile || { echo 'Install this add-on from the drupalphprust project source.' >&2; exit 1; }

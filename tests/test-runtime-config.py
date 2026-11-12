@@ -42,7 +42,7 @@ class RuntimeConfigurationTests(unittest.TestCase):
             config=json.loads((ROOT/f'.drupalaibp/{name}.json').read_text())
             hooks=config['hooks']['before_announce_complete']
             self.assertEqual([h['script'] for h in sorted(hooks,key=lambda h:h['weight'])],
-                             ['./setup-runtime.sh','./setup-tracker.sh'])
+                             ['./setup-runtime.sh','./setup-serena.sh','./setup-tracker.sh'])
             self.assertNotIn('before_launch_site',config['hooks'])
 
 if __name__=='__main__':unittest.main()

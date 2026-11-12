@@ -6,7 +6,7 @@ A local installation completed on 12 November 2026. Updated tracker launch and
 completion stages were verified separately; a fresh install of the updated config
 and Coder acceptance remain untested. See [receipt](receipts/2026-11-12-tracker-landing.md).
 
-Host requirements: DDEV **1.25.5 or newer** and working Docker, Git, Bash and Python 3; One Line Installer
+Host requirements: DDEV **1.25.5 or newer** and working Docker, Git, Bash and Python **3.11+**; One Line Installer
 2.x with config-source and late-hook support. No Rust toolchain is needed on the
 host because Docker builds it. Allow several minutes and enough disk/CPU for a
 Rust build. Coder freeform supplies the host; see CODER.md.
@@ -112,6 +112,10 @@ installer stages that hook into the generated project root. No `../` copy_paths
 are needed: the source overlay supplies the repository.
 
 ## Day-to-day commands
+
+The installer also asks which agent to connect to Serena and whether it runs on
+the host/Coder VM or inside DDEV. See [Serena and agent setup](SERENA.md) for the
+choices, existing-site upgrade, client trust/reconnection and verification.
 
 ```bash
 ddev start

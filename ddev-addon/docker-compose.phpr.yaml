@@ -1,6 +1,22 @@
 #ddev-generated
 # Installed and removed by the bundled php-rust DDEV add-on.
 services:
+  serena:
+    image: drupalphprust-serena-${DDEV_SITENAME}-built
+    build:
+      context: "${DDEV_APPROOT}/runtime/serena"
+      dockerfile: Dockerfile
+    container_name: ddev-${DDEV_SITENAME}-serena
+    user: "${DDEV_UID}:${DDEV_GID}"
+    working_dir: /var/www/html
+    environment:
+      IS_DDEV_PROJECT: "true"
+    volumes:
+      - "${DDEV_APPROOT}:/var/www/html"
+    labels:
+      com.ddev.site-name: "${DDEV_SITENAME}"
+      com.ddev.approot: "${DDEV_APPROOT}"
+    command: ["bash", "/var/www/html/scripts/serena-http.sh"]
   web:
     environment:
       VIRTUAL_HOST: "${DDEV_HOSTNAME},__PHP_HOST__"

@@ -50,6 +50,12 @@ See `docs/receipts/2026-11-12-fiber-generator-blocker.md` for the next work.
 
 ## Resume sequence
 
+Serena, rust-analyzer and the pinned Rust toolchain are now supplied by the DDEV
+`serena` service. The installer asks which agent and execution location to
+configure. Existing sites: follow [Serena setup](SERENA.md), reconnect MCP and call
+`initial_instructions` before Rust work. XMLWriter still needs implementation;
+the standalone reproduction is committed. No host Rust installation is needed.
+
 ```bash
 python3 scripts/check-repo.py
 python3 scripts/prepare-runtime.py
