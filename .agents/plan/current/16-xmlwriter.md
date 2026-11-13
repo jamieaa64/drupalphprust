@@ -6,11 +6,13 @@ Destination: PHP Rust + this repository
 
 The missing-XMLWriter homepage blocker is fixed locally. The unchanged Drupal
 homepage returns HTTP 200 and its hero content renders in the browser. Standard
-PHP still responds successfully. Authenticated create/edit/view remains open.
+PHP remains the comparison oracle. Authenticated create/edit/publish and anonymous
+viewing are now verified; see [task 01](01-fiber-generators.md).
 
 `xmlwriter-memory.patch` implements OO memory writers through libxml2, including
 inheritance, namespaces, escaping, indentation, buffer lifecycle and PHP/libxml
-error handling. Three parity fixtures and all 32 combined runtime probes pass.
+error handling. At the XMLWriter checkpoint, three parity fixtures and all 32
+combined runtime probes passed.
 Two Cargo integration tests pass in dev-release; the required adversarial review
 found no remaining blocker for this tested scope. Fresh reconstruction matches.
 
@@ -20,8 +22,10 @@ PHP 8.5-specific reflection/type/error contracts are not certified. See
 [implementation receipt](../../../docs/receipts/2026-11-12-xmlwriter-memory.md).
 
 The developer image now bundles a pinned PHP 8.5.7 oracle. The real upstream
-differential checks pass without bypasses; the full release run reports 1,757
-passes, 2 ignored and 2 failures reproduced on the pre-XMLWriter baseline.
+differential checks pass without bypasses. The historical XMLWriter release run
+reported 1,757 passes, 2 ignored and 2 failures reproduced on its baseline.
+The final 46-patch suite reports 1,756 passes, 3 failures and 2 ignored;
+[task 17](17-release-gates.md) owns the outstanding release failures.
 Run `bash scripts/test-runtime-upstream.sh`; full upstream promotion remains open.
 
 ## Work
@@ -38,9 +42,10 @@ Run `bash scripts/test-runtime-upstream.sh`; full upstream promotion remains ope
 
 - [x] Reproduce ordinary HTTPS homepage: Rust 500, standard PHP 200 on this installation.
 - [x] Match Zend output, escaping, state transitions and error behaviour for required APIs.
-- [ ] Run upstream-required checks and relevant combined runtime regressions.
+- [x] Run the Cargo release suite and relevant combined runtime regressions; record failures separately.
+- [ ] Complete remaining upstream promotion requirements; official external corpus and performance gates remain unrun.
 - [x] Rebuild the candidate and verify the unchanged CMS homepage.
-- [ ] Continue the full login/create/edit/view journey; record subsequent blockers separately.
+- [x] Complete login/create/edit/publish/view; subsequent fixes are recorded in tasks 01, 05, 06 and 08.
 
 ## Upstream
 

@@ -29,12 +29,14 @@ Upstream status is separate: not submitted, prepared, submitted, then merged
 14. [Benefits now versus Drupal changes](14-drupal-opportunities.md)
 15. [Partial HTTP request handling](15-http-partial-requests.md)
 16. [Implement XMLWriter for out-of-box Drupal CMS](16-xmlwriter.md)
+17. [Resolve runtime release gate failures](17-release-gates.md)
 
 The current installation has completed login, dashboard, Utility-page creation,
 editing, publishing and anonymous viewing on PHP Rust. The saved page survives a
 service restart. See the [current receipt](../../../docs/receipts/2026-11-13-authenticated-runtime.md)
-for the cold-cache follow-up, exact build/test evidence and remaining limits.
-Next priorities are final regression gates, fresh One Line Installer acceptance,
+for clean rendering after cache rebuild, exact build/test evidence and remaining limits.
+The final release run has 1,756 passes, three failures and two ignored tests.
+Task 17 owns the three unresolved failures. Next priorities are those fixes, fresh One Line Installer acceptance,
 DDEV Freeform validation and discrete upstream contribution preparation. No full
 runtime-parity or performance claim follows from the scoped browser journey.
 No upstream fixes have been submitted. User approval remains required for that work.

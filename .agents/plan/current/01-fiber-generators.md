@@ -28,7 +28,8 @@ owned by tasks 05, 06 and 08. See the
 - [x] Match Zend on the implemented Fiber/Generator fixtures and obtain runtime review.
 - [x] Verify the dashboard and page creation form.
 - [x] Verify create → edit → publish → anonymous view through PHP Rust.
-- [ ] Run all regressions against the final combined build; record the final candidate result in the receipt.
+- [x] Run the combined probes, both PHPT modes and release suite; record the final candidate result in the receipt.
+- [ ] Resolve the three release failures through [task 17](17-release-gates.md) before claiming a green release candidate.
 
 ## Upstream
 
