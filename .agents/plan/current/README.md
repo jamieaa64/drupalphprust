@@ -30,17 +30,14 @@ Upstream status is separate: not submitted, prepared, submitted, then merged
 15. [Partial HTTP request handling](15-http-partial-requests.md)
 16. [Implement XMLWriter for out-of-box Drupal CMS](16-xmlwriter.md)
 
-The fresh homepage renders its hero after the XMLWriter fix (task 16), but cold
-browser acceptance fails on XPath warnings, unresolved tokens and missing-route
-Fiber stalling. The font-prefix defect is patched in task 06;
-the earlier scoped Fiber/Generator blocker and authenticated flow remain open. Installer and Coder integration can
-progress independently. The bundled DDEV add-on now requires DDEV 1.25.5+,
-uses native deletion and a separate tracker hostname; full fresh-install
-acceptance remains open (task 09). Validate homepage, login, create, edit and view after
-runtime fixes. That journey checks compatibility; it is not the project's purpose.
-Prepare independent upstream changes along the way, submit only after end-to-end
-acceptance and user approval. Optional CMS gaps remain deferred. Comparison design and upstream-process research
-can start now; claims about running Drupal require executed experiments.
+The current installation has completed login, dashboard, Utility-page creation,
+editing, publishing and anonymous viewing on PHP Rust. The saved page survives a
+service restart. See the [current receipt](../../../docs/receipts/2026-11-13-authenticated-runtime.md)
+for the cold-cache follow-up, exact build/test evidence and remaining limits.
+Next priorities are final regression gates, fresh One Line Installer acceptance,
+DDEV Freeform validation and discrete upstream contribution preparation. No full
+runtime-parity or performance claim follows from the scoped browser journey.
+No upstream fixes have been submitted. User approval remains required for that work.
 [Comparison study](../../../docs/COMPARISON.md) separates today's behavior from
 opportunities requiring Drupal or runtime changes.
 

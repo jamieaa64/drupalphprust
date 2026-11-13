@@ -58,6 +58,19 @@ use declared dependency chains or rebuild a minimal branch from pinned upstream.
 | spl-fileinfo-ctime | Timestamp accessor, inherited iterator behavior and failed-stat RuntimeException |
 | static-property-reference | Bind static storage to source cell, preserve old aliases, return references and execute finally; static-reference/return-reference dependencies |
 | callable-unpack-reference | Preserve explicit references through dynamic argument unpacking; distinguish array-literal copy semantics; theme-hook regression |
+| fiber-generator-continuation | Explicit resumable Generator operations within Fibers; scoped synchronous-helper rejection and cleanup |
+| dom-namespace-axis | Namespace-axis values, inherited declarations, PHP namespace nodes and attribute separation |
+| preg-extended-comments | Lex extended comments before regex rewriting; scoped flags, quotation and class boundaries |
+| multisort-stringable | VM string conversion for natural/string sorting; side-effectful comparator order remains a limitation |
+| user-wrapper-write | Registered wrapper file_put_contents, partial counts, contexts and flush/close behavior |
+| stream-wrapper-registry | Registered protocol enumeration order and request reset |
+| fiber-generator-collector | Resumable iterator_to_array collection across Generator/Fiber suspension |
+| ref-builtin-field-spread | Reference builtin field targets with unpacked arguments |
+| function-reference-forward | Function/dynamic-call reference return forwarding |
+| static-reference-value | Value-context static calls copy returned references; explicit bindings retain aliases |
+| preg-binary-replacement | Raw replacement bytes and capture offsets across byte/Unicode patterns |
+| date-current-errors | Current-time DateTime constructors clear stale parse diagnostics |
+| mb-stringable | Multibyte lower/upper case conversion uses VM Stringable input and encoding values |
 | xmlwriter-memory | OO libxml memory writer; inheritance, buffer lifecycle, namespaces, encoding and PHP/libxml diagnostics; URI/DTD/procedural APIs excluded |
 
 The `static-property-reference` candidate covers static-property reference binding

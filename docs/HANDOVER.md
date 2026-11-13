@@ -5,7 +5,7 @@ handover for the standalone repository, not a request to resume migration work.
 
 ## Portable project entry
 
-The active source checkout was recreated outside the migration folder at
+The earlier extraction checkout was recreated outside the migration folder at
 `/Users/jamesabrahams/code/ai/drupalphprust` on `codex/portable-installer`.
 This path is a local convenience, not a runtime requirement. Use the One Line Installer directly with just the GitHub repository URL from a parent directory. Local is the first
 configuration choice; Coder is selectable interactively or with `--config coder`.
@@ -20,9 +20,9 @@ The installed tracker opens before Drupal exploration and prominently renders
 [Try it](TRY-IT.md): known failures, ownership and recovery. The fresh CMS homepage
 now renders on PHP Rust after the XMLWriter memory fix, owned by task 16.
 See [implementation evidence](receipts/2026-11-12-xmlwriter-memory.md): 32
-combined probes pass and the browser shows the expected hero. Authenticated
-login/create/edit/view remains unverified.
-The Fiber/Generator result below comes from the earlier reduced-feature site.
+combined probes pass and the browser shows the expected hero. That was the earlier XMLWriter checkpoint; the newer browser evidence is below.
+The historical Fiber/Generator receipt describes the earlier reduced-feature site;
+the current runtime section below records the newer CMS journey.
 Full parity is not required to share this experimental environment.
 
 The new bundled DDEV add-on requires DDEV 1.25.5+, gives the tracker its own
@@ -36,54 +36,57 @@ Automatic local hostname registration now runs before OLI announces completion u
 actual runtime URLs and DDEV; passwords remain in the user terminal. Coder keeps
 private routes/tunnels. No Rust language fix was made in this installer change.
 
-## Current runtime status
+## Current runtime status — 13 November 2026
 
-Latest browser status: dynamic callable-reference preservation fixes the missing
-Mercury font prefix after cache rebuild. The missing-route Fiber loop, namespace
-XPath warnings and unresolved tokens still fail browser acceptance. See the
-[current reproduction and patch receipt](receipts/2026-11-12-callable-unpack-reference.md).
-A homepage hero observation alone does not prove the complete page works.
+The selected disposable installation is `phprusttest1`, at
+`/Users/jamesabrahams/code/ai/phprust/phprusttest1`. Its local DDEV runtime image is
+`debian:bookworm-slim-phprusttest1-phpr-built`. These names describe this receipt,
+not portable installer requirements.
 
-The Views `Page.php` lowering blocker is fixed by `static-property-reference.patch`.
-The original image fails the fixture with `unsupported construct (assignment target)`.
-The new development candidate matches Zend for binding, returned aliases, rebinding,
-inherited/redeclared storage, visibility, deferred include and finally execution.
-The complete 29-probe `tests/test-oob-runtime.sh` run passes. The actual Drupal Views
-class-load probe returned `bool(true)` before the final finally-only amendment.
-Browser login succeeds. The next missing `SplFileInfo::getCTime()` method is
-fixed by a separate patch and passes the combined suite. `/node/add/page` now
-fails with `cannot suspend a Fiber from within a Generator` in Renderer.php.
-The minimal `tests/probes/fiber-generator-suspend.php` passes Zend but causes
-a runtime panic (exit 255) on the current candidate. Do not claim E2E.
-See `docs/receipts/2026-11-12-fiber-generator-blocker.md` for the next work.
+PHP Rust has now completed the actual browser journey: login, dashboard, create a
+Utility page, edit its body, publish it and view the updated content anonymously.
+The synthetic page is node 2, `/php-rust-verification-13-november`. It survives
+restarting `phpr`. A cache rebuild exposed translated-label conversion warnings;
+the focused follow-up and final test status are recorded in the
+[current receipt](receipts/2026-11-13-authenticated-runtime.md).
 
-## Resume sequence
+The runtime fixes remain a pinned upstream commit plus ordered, hash-checked
+patches in `runtime/series`, `runtime/manifest.json` and `runtime/Dockerfile`.
+No sibling checkout, old branch or private image is required to reconstruct them.
+Development image activation is not a clean installer build or a release pin.
 
-Serena, rust-analyzer and the pinned Rust toolchain are now supplied by the DDEV
-`serena` service. The installer asks which agent and execution location to
-configure. Existing sites: follow [Serena setup](SERENA.md), reconnect MCP and call
-`initial_instructions` before Rust work. XMLWriter memory support is implemented;
-the standalone reproduction is committed. No host Rust installation is needed.
+## What to do next
+
+1. Use the receipt's final regression/release status; resolve remaining checks
+   without treating known census/file-size failures as a full pass.
+2. Verify fresh One Line Installer installation from the pushed repository,
+   including a clean runtime image build, hostnames, Serena client selection and
+   normal deletion cleanup. Existing-site browser success does not cover this.
+3. Validate the existing DDEV Freeform template and private Coder routes. The user
+   handles template/workspace updates and authentication.
+4. Exercise broader CMS paths with independent oracle fixtures: rich-text editor,
+   media, sitemap generation, cold-cache plugin discovery and request handling.
+   Retain known regex, date, reference and Fiber-helper limits in the receipt.
+5. Prepare small upstream contribution packets with dependencies, reproducer,
+   tests and adversarial review; no upstream PRs without user approval. Measure
+   performance only after the isolated comparison design is ready.
+
+## Resume commands
+
+Connect to the project's container-backed `drupalphprust-serena` MCP and call
+`initial_instructions` before Rust work. Read the reconstructed upstream process.
 
 ```bash
 python3 scripts/check-repo.py
 python3 scripts/prepare-runtime.py
+bash tests/test-oob-runtime.sh "$PWD" debian:bookworm-slim-phprusttest1-phpr-built phprusttest1
+bash scripts/test-runtime-upstream.sh
 ```
 
-Read the reconstructed runtime's AGENTS/process files before editing. On an installed
-disposable project with the new sidecar enabled, run:
-
-```bash
-ddev exec -s phpr env PHPR_LOG=warn phpr /dev/stdin < tests/probes/views-page-class.php
-```
-
-The original Coder site still uses its separate Docker comparison container, not
-this repository's prepared DDEV sidecar. Candidate image: `drupalphprust:dev-release`.
-Run `tests/test-oob-runtime.sh PROJECT_PATH IMAGE PROJECT_NAME` for the differential
-suite. `PHPR_LOG=warn` enables runtime diagnostics; `RUST_LOG` does not.
-Continue browser dashboard and create/edit/view, minimising each new failure before
-patching runtime code. Do not patch Drupal core or count error-containing HTTP 200s
-as success. Full installer and performance validation remain separate milestones.
+The last command uses upstream's release Cargo suite and the bundled PHP 8.5.7
+oracle inside Serena. Keep its memory-intensive build separate from other builds.
+Use standard DDEV PHP for Composer and Drush. Do not change Drupal to conceal
+runtime failures, and reject HTTP 200 responses containing warnings/placeholders.
 
 ## Evidence snapshot at extraction (2026-11-11)
 
@@ -124,7 +127,7 @@ All exports can be reconstructed without the old integration Git branch.
 
 - `simple_sitemap`: memory XMLWriter implemented; sitemap generation itself remains unverified.
 - `klaro`: DOM XPath gaps.
-- Asset aggregation: registered stream-wrapper file writes incomplete.
+- Asset aggregation: registered stream-wrapper writes are patched; retain cold-cache checks.
 - Request cron disabled; previous Canvas health/schema callback path not verified.
 - Server idle-preconnect test passes, but partial HTTP requests can still block its
   sequential server. It is not a hardened production serving stack.

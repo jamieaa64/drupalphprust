@@ -4,18 +4,18 @@ Status: active
 
 Destination: PHP Rust + this repository
 
-Fiber/Generator suspension was reproduced on the earlier reduced-feature site,
-not a complete inventory of remaining defects. The fresh installation now serves
-its homepage and anonymous login form after task 16's XMLWriter fix; authenticated
-create/edit/view still needs validation. Continue through Drupal and minimise each
-new failure. See the [XMLWriter receipt](../../../docs/receipts/2026-11-12-xmlwriter-memory.md).
+The selected installation now completes login, dashboard, Utility-page creation,
+editing, publishing and anonymous viewing on PHP Rust. The page survives restart.
+This is a scoped CMS journey, not an inventory of every remaining runtime defect.
 
 ## Current browser evidence
 
-The missing-font URL enters a Canvas 404 render loop whose child Fiber reports
-running after control returns to its caller. A bounded nested-render fixture also
-panics on Generator/Fiber suspension; the exact connection is not yet established.
-See [current receipt](../../../docs/receipts/2026-11-12-callable-unpack-reference.md).
+Explicit Generator continuations cover repeated suspension, changed resume depth,
+delegation and finally cleanup. `iterator_to_array` also retains partial collection
+across suspension. Unsupported native helper boundaries reject safely. References,
+stream wrappers and date fixes were needed to complete the form journey and remain
+owned by tasks 05, 06 and 08. See the
+[current receipt](../../../docs/receipts/2026-11-13-authenticated-runtime.md).
 
 ## Work
 
@@ -25,10 +25,10 @@ See [current receipt](../../../docs/receipts/2026-11-12-callable-unpack-referenc
 ## Test / finish
 
 - [x] Fix the Views static-property reference compiler gap and add its regression.
-- [ ] Match Zend on Fiber/Generator fixtures and obtain runtime review.
-- [ ] Verify the dashboard and page creation form.
-- [ ] Verify create → edit → view through PHP Rust.
-- [ ] Run all regressions against the final combined build; the earlier 29-probe pass is not this final gate.
+- [x] Match Zend on the implemented Fiber/Generator fixtures and obtain runtime review.
+- [x] Verify the dashboard and page creation form.
+- [x] Verify create → edit → publish → anonymous view through PHP Rust.
+- [ ] Run all regressions against the final combined build; record the final candidate result in the receipt.
 
 ## Upstream
 
@@ -39,6 +39,6 @@ Then [package a reusable seed](11-fast-seed.md) and [compare startup/page perfor
 The superseded checklist came from the old drupal-runtime-comparison/PROGRESS.md
 (11 November); its unchecked Views item is now resolved, not a new blocker.
 
-Patches: fiber-static-dispatch.patch, fiber-callback-trampoline.patch
+Patches: fiber-static-dispatch.patch, fiber-callback-trampoline.patch, fiber-generator-continuation.patch, fiber-generator-collector.patch
 
 [Overall plan](README.md) · [Next](02-pdo-mysql.md) · [Evidence / guidance](../../../docs/HANDOVER.md) · [Fiber reproducer](../../../docs/receipts/2026-11-12-fiber-generator-blocker.md)

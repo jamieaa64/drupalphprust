@@ -19,8 +19,8 @@ fixtures pass in the recorded combined run.
 ## Why this task is still partial
 
 Builtin reflection currently describes only six named functions rather than a
-general solution, and the complete dashboard has not been verified. The rendering
-fixes are patched; reflection coverage and full rendering acceptance remain open.
+general solution. The dashboard and published Utility-page rendering are verified;
+broader reflection and rendering coverage remain open.
 This is a specific limitation, not merely waiting for upstream submission.
 
 ## How it is tested
@@ -28,17 +28,26 @@ This is a specific limitation, not merely waiting for upstream submission.
 `tests/test-oob-runtime.sh` compares strtr-stringable, markup-string, field-concat,
 twig-markup, builtin-reflection, object-vars-copy, preg-byte-offset and
 chained-magic-argument probes with Zend. Exact output and clean stderr are required.
-After the Fiber blocker is fixed, render the real dashboard/page form and inspect
-content and diagnostics; a successful HTTP status alone is insufficient.
+The real dashboard, page form and published content have been inspected. Retain
+those checks when extending coverage; a successful HTTP status alone is insufficient.
 
 ## Work
 
 - Patched dynamic callable unpacking references; the Mercury font prefix is
   correct after rebuilding Drupal caches. Array-copy isolation is tested.
-  XPath warnings, unresolved tokens and the missing-route Fiber stall remain.
+  Follow-up namespace, token-scanner and Fiber fixes are implemented separately.
   See [receipt](../../../docs/receipts/2026-11-12-callable-unpack-reference.md).
+- Patched extended regex comments so token scanning resolves `[site:name]`.
+- Patched string/natural multisort to invoke Stringable conversion. Pure Drupal
+  labels pass; side-effectful conversion order remains different from Zend.
+  [Receipt](../../../docs/receipts/2026-11-12-continuations-and-rendering.md).
 - Audit reflection coverage needed by Drupal; implement missing descriptors with fixtures.
 - Resolve remaining rendering defects revealed after the Fiber fix in separate patches.
+
+- Binary preg replacement preserves Drupal date markers. Current-time DateTime
+  constructors clear stale parse errors, allowing revision timestamp validation.
+  Multibyte case conversion handles translated-label Stringable objects.
+  [Receipt](../../../docs/receipts/2026-11-13-authenticated-runtime.md).
 
 ## Test / finish
 
@@ -51,6 +60,6 @@ Upstream status: Not submitted.
 
 Prepare discrete fixes; submit only after end-to-end acceptance and user approval.
 
-Patches: strtr-stringable-map.patch, concat-stringable.patch, field-concat-stringable.patch, builtin-reflection.patch, object-vars-snapshot.patch, preg-byte-offset.patch, chained-magic-argument.patch, callable-unpack-reference.patch
+Patches: strtr-stringable-map.patch, concat-stringable.patch, field-concat-stringable.patch, builtin-reflection.patch, object-vars-snapshot.patch, preg-byte-offset.patch, chained-magic-argument.patch, callable-unpack-reference.patch, preg-extended-comments.patch, multisort-stringable.patch, preg-binary-replacement.patch, date-current-errors.patch, mb-stringable.patch
 
 [Overall plan](README.md) · [Previous](05-callables-references.md) · [Next](07-sessions-http.md) · [Evidence / guidance](../../../docs/UPSTREAM.md)

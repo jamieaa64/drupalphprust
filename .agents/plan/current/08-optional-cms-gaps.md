@@ -4,16 +4,22 @@ Status: partial
 
 Destination: PHP Rust
 
-Limited DOM/stream patches exist; XPath, stream writes and cron gaps remain.
+DOM namespace XPath and registered wrapper writes are patched; broader XPath,
+default stream-context APIs and cron gaps remain.
 XMLWriter memory support is now owned and patched in task 16; full XMLWriter
 API coverage remains outside that focused contribution.
 
-## Current browser blocker
+## Current implementation
 
-Cold homepage rendering exposes DOMXPath warnings. The namespace-axis expression
-used by Masterminds' serializer fails the independent
-`tests/probes/dom-namespace-axis.php` fixture. Namespace XPath now blocks baseline
-acceptance; unrelated optional CMS gaps remain deferred.
+Namespace XPath support is patched and matches independent Zend fixtures for
+inheritance, shadowing, predicates and PHP namespace-node properties. The current
+registered wrapper write patch fixes asset generation through `temporary://`.
+The browser homepage now renders with styles, fonts and JavaScript. Registered
+wrapper enumeration also preserves registration order and resets per request,
+avoiding duplicate-registration warnings during Drupal subrequests.
+The write fixture covers append, arrays, partial writes, contexts, resource input,
+exceptions and zero/false/negative/oversized results. See the
+[current receipt](../../../docs/receipts/2026-11-12-continuations-and-rendering.md).
 
 ## Work
 
@@ -29,6 +35,6 @@ acceptance; unrelated optional CMS gaps remain deferred.
 
 Not submitted; prepare discrete fixes. Submit only after end-to-end acceptance and user approval.
 
-Patches: dom-doctype.patch, stream-constants.patch
+Patches: dom-doctype.patch, stream-constants.patch, dom-namespace-axis.patch, user-wrapper-write.patch, stream-wrapper-registry.patch
 
 [Overall plan](README.md) · [Previous](07-sessions-http.md) · [Next](09-installer.md) · [Evidence / guidance](../../../docs/TESTING.md)

@@ -18,13 +18,20 @@ references across calls, returns, ArrayAccess and static properties. The Views
 assignment `static::$pageRenderArray = &$element` now compiles; its regression also
 checks aliases and finally execution.
 
+Additional fixes cover unpacked builtin arguments targeting fields, forwarded
+function reference returns, and value-context static reference returns. The latter
+removes a native stack overflow during Drupal form validation: a normal assignment
+now copies the returned value instead of storing a reference inside itself.
+
 ## How it is tested
 
 `tests/test-oob-runtime.sh` compares callable-autoload, cross-unit-reference,
 dynamic-reference, static-reference, arrayaccess-reference, return-reference and
 static-property-reference probes, among others, against Zend. The recorded
-29-probe combined run passes. The Views class-load probe also succeeded before
-the final finally amendment; full Drupal flow is still outstanding.
+earlier 29-probe run is superseded by the combined candidate tests in the
+[current receipt](../../../docs/receipts/2026-11-13-authenticated-runtime.md).
+The actual create/edit/publish journey now succeeds; independent alias, dynamic-call,
+named/spread, exception and evaluation-order cases received adversarial review.
 
 ## Scope limits
 
@@ -49,6 +56,6 @@ Upstream status: Not submitted.
 
 Prepare discrete fixes; submit only after end-to-end acceptance and user approval.
 
-Patches: builtin-object-dispatch.patch, callable-method-arguments.patch, callable-autoload.patch, cross-unit-reference-call.patch, dynamic-reference-builtin.patch, static-reference.patch, arrayaccess-reference.patch, return-reference.patch, static-property-reference.patch
+Patches: builtin-object-dispatch.patch, callable-method-arguments.patch, callable-autoload.patch, cross-unit-reference-call.patch, dynamic-reference-builtin.patch, static-reference.patch, arrayaccess-reference.patch, return-reference.patch, static-property-reference.patch, ref-builtin-field-spread.patch, function-reference-forward.patch, static-reference-value.patch
 
 [Overall plan](README.md) · [Previous](04-class-loading.md) · [Next](06-rendering-twig.md) · [Evidence / guidance](../../../docs/UPSTREAM.md)
