@@ -54,10 +54,22 @@ release build. Exact candidate identity:
 - `phpr`: `e050bf3989539f991a314eeba1bec8ef0163117f7e875e5e0a18289c65296a1c`.
 - `php-server`: `d8c9dea04a347daccc0b1e22c0b49ee12e5beb27e2617429353c30a8a8c09785`.
 
-`bash scripts/test-runtime-upstream.sh` runs the unchanged release recipe with
-PHP 8.5.7. Its final run is in progress. The last completed run was patch 37:
-1,757 passed, 2 failed, 2 ignored. See [the previous receipt](2026-11-12-continuations-and-rendering.md).
-The failures are the opcode census and Rust source-file size caps; no full green
+`bash scripts/test-runtime-upstream.sh` completed against patches 1–46 with
+pinned Rust 1.98.1, the unchanged release recipe (fat LTO, one codegen unit,
+one build job) and PHP 8.5.7 oracle. Result: **1,756 passed, 3 failed, 2 ignored**;
+exit status 101. Local log: `.work/mb-stringable-fix/release-tests.log`.
+
+- `vm::census::tests::op_index_maps_sampled_variants_in_range`: opcode accounting
+  assertion reports 177 versus 178.
+- `nessun_sorgente_rs_oltre_cap`: 14 Rust source files exceed their recorded size
+  limits, including the new date, compiler and regular-expression changes.
+- `rczval_pattern_resta_nel_funnel`: `vm/host.rs` contains seven matching
+  reference allocations where the guard expects six. This is an additional
+  failure compared with the patch-37 checkpoint and needs investigation of the
+  allocation site and the required `zcell()` funnel, not a blind expectation bump.
+
+The historical patch-37 result was 1,757 passed, 2 failed, 2 ignored; see
+[the previous receipt](2026-11-12-continuations-and-rendering.md). No full green
 release gate is claimed. The official upstream external corpus and performance
 gates have not been run.
 

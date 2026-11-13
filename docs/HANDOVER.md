@@ -57,7 +57,8 @@ Development image activation is not a clean installer build or a release pin.
 
 ## What to do next
 
-1. Use the receipt's final regression/release status; resolve remaining checks
+1. Resolve the three recorded release failures (opcode accounting, source-size
+   limits and reference-allocation guard); use the receipt's exact results
    without treating known census/file-size failures as a full pass.
 2. Verify fresh One Line Installer installation from the pushed repository,
    including a clean runtime image build, hostnames, Serena client selection and

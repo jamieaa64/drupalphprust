@@ -26,7 +26,10 @@ Rendering is clean after a cache rebuild. All 49 comparison probes and 47 PHPT
 cases in both compiler modes pass.
 [What changed and evidence](docs/receipts/2026-11-13-authenticated-runtime.md).
 
-**Next:** Finish cold-cache verification and release checks; test a fresh One Line
+**Release suite:** 1,756 passed, 3 failed, 2 ignored. Remaining failures cover
+opcode accounting, source-size limits and the reference-allocation guard.
+
+**Next:** Resolve those release failures; test a fresh One Line
 Installer build and DDEV Freeform; then prepare discrete upstream contribution
 packets. Broader runtime coverage and partial-request server blocking remain open.
 No speed or complete Drupal parity claim. Standard PHP remains the comparison oracle.
