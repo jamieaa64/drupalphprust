@@ -1,0 +1,120 @@
+diff --git a/php-rust/crates/php-runtime/src/preg.rs b/php-rust/crates/php-runtime/src/preg.rs
+--- a/php-rust/crates/php-runtime/src/preg.rs
++++ b/php-rust/crates/php-runtime/src/preg.rs
+@@ -712,6 +712,103 @@
+     String::from_utf8_lossy(&out).into_owned()
+ }
+ 
++/// Strip /x comments before syntax rewriting, respecting quoting and local modes.
++fn normalize_extended_comments(body: &str) -> String {
++    let src = body.as_bytes();
++    let mut out = Vec::with_capacity(src.len());
++    let mut i = 0;
++    let mut in_class = false;
++    let mut class_first = false;
++    let mut extended = true;
++    let mut modes = Vec::new();
++    while i < src.len() {
++        let b = src[i];
++        if b == b'\\' && i + 1 < src.len() {
++            if src[i + 1] == b'c' && i + 2 < src.len() && src[i + 2].is_ascii() {
++                out.extend_from_slice(format!("\\x{:02x}", src[i + 2].to_ascii_uppercase() ^ 64).as_bytes());
++                i += 3;
++            } else if src[i + 1] == b'Q' {
++                i += 2;
++                while i < src.len() && !src[i..].starts_with(b"\\E") {
++                    let ch = body[i..].chars().next().expect("quoted character");
++                    out.extend_from_slice(format!("\\x{{{:x}}}", ch as u32).as_bytes());
++                    i += ch.len_utf8();
++                }
++                if i < src.len() { i += 2; }
++            } else {
++                out.extend_from_slice(&src[i..i + 2]);
++                i += 2;
++            }
++            if in_class { class_first = false; }
++            continue;
++        }
++        if !in_class && extended && b == b'#' {
++            while i < src.len() && src[i] != b'\n' && src[i] != b'\r' { i += 1; }
++            continue;
++        }
++        if !in_class && b == b'(' {
++            if src[i..].starts_with(b"(?#") {
++                let start = i;
++                i += 3;
++                while i < src.len() && src[i] != b')' { i += 1; }
++                if i < src.len() { i += 1; }
++                out.extend_from_slice(&src[start..i]);
++                continue;
++            }
++            let mut j = i + 2;
++            let mut next_mode = extended;
++            let mut enable = true;
++            if src.get(i + 1) == Some(&b'?') {
++                while j < src.len() && (src[j].is_ascii_alphabetic() || src[j] == b'-') {
++                    if src[j] == b'-' { enable = false; }
++                    if src[j] == b'x' { next_mode = enable; }
++                    j += 1;
++                }
++                if j > i + 2 && matches!(src.get(j), Some(b':' | b')')) {
++                    if src[j] == b':' { modes.push(extended); }
++                    extended = next_mode;
++                    out.extend_from_slice(&src[i..=j]);
++                    i = j + 1;
++                    continue;
++                }
++            }
++            modes.push(extended);
++        } else if !in_class && b == b')' {
++            if let Some(mode) = modes.pop() { extended = mode; }
++        }
++        if !in_class && b == b'[' {
++            in_class = true;
++            class_first = true;
++            if src.get(i + 1) == Some(&b'^') {
++                out.extend_from_slice(b"[^");
++                i += 2;
++                continue;
++            }
++        } else if in_class {
++            if b == b'[' && matches!(src.get(i + 1), Some(b':' | b'.' | b'=')) {
++                let marker = src[i + 1];
++                let start = i;
++                i += 2;
++                while i + 1 < src.len() && !(src[i] == marker && src[i + 1] == b']') { i += 1; }
++                if i + 1 < src.len() { i += 2; }
++                out.extend_from_slice(&src[start..i]);
++                class_first = false;
++                continue;
++            }
++            if b == b']' && !class_first { in_class = false; }
++            class_first = false;
++            if extended && (b == b'#' || b.is_ascii_whitespace()) {
++                out.extend_from_slice(format!("\\x{:02x}", b).as_bytes());
++                i += 1;
++                continue;
++            }
++        }
++        out.push(b);
++        i += 1;
++    }
++    String::from_utf8(out).expect("rewriting preserves UTF-8")
++}
++
+ /// Parse and compile a PHP PCRE pattern. Returns `None` when the delimiters are
+ /// malformed or neither engine can build the body (step 36 auto-fallback).
+ pub fn compile(pattern: &[u8]) -> Option<Engine> {
+@@ -745,6 +842,12 @@
+         body_owned = latin1_decode(&pattern[1..end]);
+         &body_owned
+     };
++
++    let extended_body;
++    let body = if flags.contains(&b'x') {
++        extended_body = normalize_extended_comments(body);
++        extended_body.as_str()
++    } else { body };
+ 
+     // Branch-reset groups `(?|…)` (WP duotone) rewrite FIRST — later rewriters
+     // neither add nor remove capturing groups, so the physical→logical map

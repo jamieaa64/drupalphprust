@@ -1,0 +1,135 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/host.rs b/php-rust/crates/php-runtime/src/vm/host.rs
+--- a/php-rust/crates/php-runtime/src/vm/host.rs
++++ b/php-rust/crates/php-runtime/src/vm/host.rs
+@@ -6684,6 +6684,112 @@
+         Ok(Zval::Str(PhpStr::new(data)))
+     }
+ 
++/// Write through a registered user wrapper, preserving partial writes and close.
++    pub(super) fn user_wrapper_put_contents(&mut self, path: &[u8], args: &[Zval]) -> Result<Zval, PhpError> {
++        let flags = args.get(2).map(|v| convert::to_long_cast(&v.deref_clone(), &mut self.diags)).unwrap_or(0);
++        if flags & 2 != 0 {
++            self.diags.push(Diag::Warning("file_put_contents(): Exclusive locks may only be set for regular files".into()));
++            return Ok(Zval::Bool(false));
++        }
++        let context = match args.get(3).map(Zval::deref_clone) {
++            None | Some(Zval::Null) => self.ho_stream_context_create(Vec::new())?,
++            Some(Zval::Resource(rc)) if rc.borrow().context_options().is_some() => Zval::Resource(rc),
++            Some(other) => return Err(PhpError::TypeError(format!(
++                "file_put_contents(): Argument #4 ($context) must be of type resource or null, {} given",
++                other.type_name_for_error()
++            ))),
++        };
++        let scheme = url_scheme(path);
++        let class = self.stream_wrappers.get(scheme.as_bytes()).expect("registered wrapper").clone();
++        let key = class.strip_prefix(b"\\").unwrap_or(&class).to_ascii_lowercase();
++        let Some(&cid) = self.class_index.get(key.as_slice()) else { return Ok(Zval::Bool(false)); };
++        let obj = self.instantiate_wrapper(cid)?;
++        if let Zval::Object(o) = &obj { o.borrow_mut().props.set(b"context", context); }
++        let has = |vm: &Self, method: &[u8]| resolve_method_runtime(&vm.classes, cid, method).is_some();
++        let mode = if flags & 8 != 0 { b"ab" } else { b"wb" };
++        let opened = php_types::zcell(Zval::Null);
++        let opened_ok = self.call_method_sync(obj.clone(), b"stream_open", vec![
++            Zval::Str(PhpStr::new(path.to_vec())), Zval::Str(PhpStr::new(mode.to_vec())),
++            Zval::Long(flags & 1), Zval::Ref(opened),
++        ])?;
++        if !convert::to_bool(&opened_ok.deref_clone(), &mut self.diags) {
++            self.diags.push(Diag::Warning(format!(
++                "file_put_contents({}): Failed to open stream: \"{}::stream_open\" call failed",
++                String::from_utf8_lossy(path), String::from_utf8_lossy(&class)
++            )));
++            self.gc_note(&obj);
++            return Ok(Zval::Bool(false));
++        }
++        let mut total = 0usize;
++        let mut dirty = false;
++        let result = (|| -> Result<Zval, PhpError> {
++            let data = args[1].deref_clone();
++            let array_data = matches!(&data, Zval::Array(_));
++            let values = match data {
++                Zval::Array(a) => a.iter().map(|(_, value)| value.deref_clone()).collect::<Vec<_>>(),
++                Zval::Resource(_) => vec![self.call_callable(
++                    Zval::Str(PhpStr::new(b"stream_get_contents".to_vec())), vec![data]
++                )?],
++                other => vec![other],
++            };
++            for value in values {
++                let bytes = self.vm_stringify(&value)?.as_bytes().to_vec();
++                let mut offset = 0usize;
++                while offset < bytes.len() {
++                    let end = (offset + 8192).min(bytes.len());
++                    let returned = self.call_method_sync(obj.clone(), b"stream_write", vec![
++                        Zval::Str(PhpStr::new(bytes[offset..end].to_vec()))
++                    ])?;
++                    let returned = returned.deref_clone();
++                    let count = if matches!(returned, Zval::Bool(false)) { -1 } else {
++                        convert::to_long_cast(&returned, &mut self.diags)
++                    };
++                    dirty |= count != 0;
++                    if count <= 0 {
++                        if array_data {
++                            self.diags.push(Diag::Warning(format!(
++                                "file_put_contents(): Failed to write {} bytes to {}",
++                                bytes.len(), String::from_utf8_lossy(path)
++                            )));
++                        } else if count == 0 {
++                            self.diags.push(Diag::Warning(format!(
++                                "file_put_contents(): Only {} of {} bytes written, possibly out of free disk space",
++                                offset, bytes.len()
++                            )));
++                        }
++                        let line = self.cur_line(self.frames.len() - 1);
++                        self.flush_diags(line)?;
++                        return Ok(Zval::Bool(false));
++                    }
++                    if count as usize > end - offset {
++                        self.diags.push(Diag::Warning(format!(
++                            "file_put_contents(): {}::stream_write wrote {} bytes more data than requested ({} written, {} max)",
++                            String::from_utf8_lossy(&class), count as usize - (end - offset), count, end - offset
++                        )));
++                        let line = self.cur_line(self.frames.len() - 1);
++                        self.flush_diags(line)?;
++                    }
++                    let count = (count as usize).min(end - offset);
++                    offset += count;
++                    total += count;
++                }
++            }
++            Ok(Zval::Long(total as i64))
++        })();
++        // BUG(port): Zend drops the wrapper without stream_close when conversion
++        // or stream_write throws. Ordinary failures still flush/close.
++        if result.is_err() { self.gc_note(&obj); return result; }
++        let flushed = if dirty && has(self, b"stream_flush") {
++            self.call_method_sync(obj.clone(), b"stream_flush", Vec::new())
++        } else { Ok(Zval::Bool(true)) };
++        if let Err(error) = flushed { self.gc_note(&obj); return Err(error); }
++        let closed = if has(self, b"stream_close") {
++            self.call_method_sync(obj.clone(), b"stream_close", Vec::new())
++        } else { Ok(Zval::Null) };
++        self.gc_note(&obj);
++        result.and_then(|value| { closed?; Ok(value) })
++    }
++
+     /// Call the wrapper's `url_stat($path, $flags)`. `None` when the scheme has
+     /// no registered wrapper / handler class / `url_stat` method; otherwise the
+     /// dereferenced return value — a stat array on success, `false` on failure,
+diff --git a/php-rust/crates/php-runtime/src/vm/run.rs b/php-rust/crates/php-runtime/src/vm/run.rs
+--- a/php-rust/crates/php-runtime/src/vm/run.rs
++++ b/php-rust/crates/php-runtime/src/vm/run.rs
+@@ -1461,6 +1461,15 @@
+                 return Ok(result);
+             }
+         }
++        if args.len() >= 2 && name[..] == *b"file_put_contents" {
++            if let Some(path) = user_wrapper_url(&args[0], &self.stream_wrappers) {
++                let line = self.cur_line(top);
++                self.flush_diags(line)?;
++                let result = self.user_wrapper_put_contents(&path, args)?;
++                self.flush_diags(line)?;
++                return Ok(result);
++            }
++        }
+         // Stat-family / image / exif builtins on a wrapper URL:
+         // url_stat or read-to-EOF through the wrapper object.
+         if !args.is_empty() && is_user_wrapper_path_op(&name) {

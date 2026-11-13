@@ -1,0 +1,141 @@
+diff --git a/php-rust/crates/php-runtime/src/preg.rs b/php-rust/crates/php-runtime/src/preg.rs
+--- a/php-rust/crates/php-runtime/src/preg.rs
++++ b/php-rust/crates/php-runtime/src/preg.rs
+@@ -624,38 +624,39 @@
+     }
+ }
+ 
+-/// Expand the `translate_replacement`-normalised template `repl` (`${n}`
+-/// backreferences, `$$` → literal `$`) against one engine-neutral match.
++/// Expand a normalized replacement for internal UTF-8 engine consumers.
+ fn expand_caps_template(c: &Caps, repl: &str) -> String {
+-    let rb = repl.as_bytes();
+-    let mut out: Vec<u8> = Vec::new();
++    String::from_utf8_lossy(&expand_caps_bytes(c, repl.as_bytes())).into_owned()
++}
++
++/// Expand a normalized replacement without interpreting PHP bytes as UTF-8.
++/// Captures must already be mapped back to the subject's original byte domain.
++pub fn expand_caps_bytes(c: &Caps, repl: &[u8]) -> Vec<u8> {
++    let mut out = Vec::new();
+     let mut i = 0;
+-    while i < rb.len() {
+-        if rb[i] == b'$' && rb.get(i + 1) == Some(&b'$') {
++    while i < repl.len() {
++        if repl[i] == b'$' && repl.get(i + 1) == Some(&b'$') {
+             out.push(b'$');
+             i += 2;
+-        } else if rb[i] == b'$' && rb.get(i + 1) == Some(&b'{') {
+-            let ds = i + 2;
+-            let mut j = ds;
+-            while j < rb.len() && rb[j].is_ascii_digit() {
+-                j += 1;
+-            }
+-            if j > ds && rb.get(j) == Some(&b'}') {
+-                let n: usize = repl[ds..j].parse().unwrap_or(usize::MAX);
+-                if let Some(m) = c.get(n) {
+-                    out.extend_from_slice(m.text.as_bytes());
+-                }
+-                i = j + 1;
++        } else if repl[i] == b'$' && repl.get(i + 1) == Some(&b'{') {
++            let start = i + 2;
++            let mut end = start;
++            while end < repl.len() && repl[end].is_ascii_digit() { end += 1; }
++            if end > start && repl.get(end) == Some(&b'}') {
++                let n = std::str::from_utf8(&repl[start..end]).ok()
++                    .and_then(|s| s.parse::<usize>().ok()).unwrap_or(usize::MAX);
++                if let Some(m) = c.get(n) { out.extend_from_slice(m.text.as_bytes()); }
++                i = end + 1;
+             } else {
+-                out.push(rb[i]);
++                out.push(repl[i]);
+                 i += 1;
+             }
+         } else {
+-            out.push(rb[i]);
++            out.push(repl[i]);
+             i += 1;
+         }
+     }
+-    String::from_utf8_lossy(&out).into_owned()
++    out
+ }
+ 
+ /// Replace every non-overlapping match of `re` in `text`, expanding the
+diff --git a/php-rust/crates/php-runtime/src/vm/host.rs b/php-rust/crates/php-runtime/src/vm/host.rs
+--- a/php-rust/crates/php-runtime/src/vm/host.rs
++++ b/php-rust/crates/php-runtime/src/vm/host.rs
+@@ -3563,17 +3563,15 @@
+             }
+         };
+         // Compile every pattern up front: any bad pattern nulls the whole call.
+-        // The translated replacement stays as bytes so it can enter whichever
+-        // text domain the subject picks (UTF-8, or latin1 for a binary one).
++        // Replacements remain PHP bytes, independently of the pattern's text
++        // domain. A /u pattern validates its subject, not its replacement.
+         let mut pairs = Vec::with_capacity(pats.len());
+-        let mut any_unicode = false;
+         for (i, p) in pats.iter().enumerate() {
+             let Some(re) = self.preg_compile(p) else {
+                 return Ok((Zval::Null, Zval::Long(0)));
+             };
+-            any_unicode |= crate::preg::pattern_is_unicode(p);
+             let r = repls.get(i).map(|r| r.as_slice()).unwrap_or(b"");
+-            pairs.push((re, crate::preg::translate_replacement(r)));
++            pairs.push((re, crate::preg::translate_replacement(r), crate::preg::pattern_is_unicode(p)));
+         }
+         // `$limit`: maximum replacements PER pattern PER subject; negative =
+         // unlimited (the default -1), 0 = replace nothing.
+@@ -3583,32 +3581,27 @@
+         };
+         let mut total = 0i64;
+         let run_one = |subject: &[u8], total: &mut i64| -> Zval {
+-            let Some(txt) = crate::preg::subject_text(subject, any_unicode) else {
+-                // Invalid UTF-8 under a /u pattern: PHP nulls this subject.
+-                return Zval::Null;
+-            };
+-            let latin1 = txt.is_latin1();
+-            let mut s = txt.as_str().to_owned();
+-            for (re, repl) in &pairs {
+-                let repl = if latin1 {
+-                    crate::preg::latin1_decode(repl)
+-                } else {
+-                    String::from_utf8_lossy(repl).into_owned()
++            let mut s = subject.to_vec();
++            for (re, repl, unicode) in &pairs {
++                let Some(txt) = crate::preg::subject_text(&s, *unicode) else {
++                    return Zval::Null;
+                 };
+-                let matches = re.captures_iter(&s).len();
+-                let done = if limit < 0 { matches } else { matches.min(limit as usize) };
+-                *total += done as i64;
+-                if done == 0 {
+-                    continue;
+-                }
+-                s = if limit < 0 {
+-                    re.replace_all(&s, repl.as_str())
+-                } else {
+-                    re.replacen(&s, done, repl.as_str())
+-                };
+-            }
+-            let out = if latin1 { crate::preg::latin1_encode(&s) } else { s.into_bytes() };
+-            Zval::Str(PhpStr::new(out))
++                let captures = re.captures_iter(txt.as_str());
++                let count = if limit < 0 { captures.len() } else { captures.len().min(limit as usize) };
++                let mut out = Vec::new();
++                let mut last = 0;
++                for mut caps in captures.into_iter().take(count) {
++                    if txt.is_latin1() { caps.latin1_fix(txt.as_str()); }
++                    let Some(m) = caps.get(0) else { continue };
++                    out.extend_from_slice(&s[last..m.start]);
++                    out.extend_from_slice(&crate::preg::expand_caps_bytes(&caps, repl));
++                    last = m.end;
++                    *total += 1;
++                }
++                out.extend_from_slice(&s[last..]);
++                s = out;
++            }
++            Zval::Str(PhpStr::new(s))
+         };
+         // An array `$subject` maps per entry (keys preserved); a scalar maps to
+         // a string result.

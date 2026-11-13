@@ -1,0 +1,123 @@
+diff --git a/php-rust/crates/php-runtime/src/compile/expr.rs b/php-rust/crates/php-runtime/src/compile/expr.rs
+--- a/php-rust/crates/php-runtime/src/compile/expr.rs
++++ b/php-rust/crates/php-runtime/src/compile/expr.rs
+@@ -1945,29 +1945,7 @@
+         match &first.kind {
+             ExprKind::Var(slot) => {
+                 let slot = *slot;
+-                // A spread among the by-value rest (`array_push($a, ...$b)`): push
+-                // one value per component (spread *sources* marked) and flatten at
+-                // run time, mirroring the by-value `emit_builtin_spread` path.
+-                if rest.iter().any(|a| matches!(a.kind, ExprKind::Spread(_))) {
+-                    let mut spreads = Vec::with_capacity(rest.len());
+-                    for a in rest {
+-                        if let ExprKind::Spread(src) = &a.kind {
+-                            self.expr(src)?;
+-                            spreads.push(true);
+-                        } else {
+-                            self.expr(a)?;
+-                            spreads.push(false);
+-                        }
+-                    }
+-                    self.emit(Op::CallBuiltinRefSpread {
+-                        name: name.into(),
+-                        slot,
+-                        spreads: spreads.into(),
+-                    });
+-                    return Ok(());
+-                }
+-                self.push_value_args(rest)?;
+-                self.emit(Op::CallBuiltinRef { name: name.into(), slot, argc: rest.len() as u32 });
++                self.emit_ref_builtin_rest(name, slot, rest)?;
+                 Ok(())
+             }
+             // A bare static property as the by-reference argument
+@@ -1979,8 +1957,7 @@
+                 let prop = super::assign::SpName::Lit(prop.clone());
+                 self.static_prop_rmw(class, &prop, &[], true, |c, place| {
+                     let slot = local_slot(place);
+-                    c.push_value_args(rest)?;
+-                    c.emit(Op::CallBuiltinRef { name: nm.into(), slot, argc: rest.len() as u32 });
++                    c.emit_ref_builtin_rest(&nm, slot, rest)?;
+                     Ok(())
+                 })
+             }
+@@ -1995,11 +1972,7 @@
+                 if let Some(place) = expr_field_place(first) {
+                     let (base, steps) = self.field_path(&place)?;
+                     self.emit(Op::MakeRef { base, steps: steps.into() });
+-                    self.push_value_args(rest)?;
+-                    self.emit(Op::CallBuiltinRefCell {
+-                        name: name.into(),
+-                        argc: rest.len() as u32,
+-                    });
++                    self.emit_ref_cell_rest(name, rest)?;
+                     return Ok(());
+                 }
+                 // An *indexed* static property
+@@ -2021,8 +1994,7 @@
+                     return self.static_prop_rmw(class, &prop, &steps_rev, true, |c, place| {
+                         let (base, psteps) = c.field_path(place)?;
+                         c.emit(Op::MakeRef { base, steps: psteps.into() });
+-                        c.push_value_args(rest)?;
+-                        c.emit(Op::CallBuiltinRefCell { name: nm.into(), argc: rest.len() as u32 });
++                        c.emit_ref_cell_rest(&nm, rest)?;
+                         Ok(())
+                     });
+                 }
+@@ -2045,11 +2017,7 @@
+                     let place = Place { base: PlaceBase::Local(root_tmp), steps };
+                     let (base, fsteps) = self.field_path(&place)?;
+                     self.emit(Op::MakeRef { base, steps: fsteps.into() });
+-                    self.push_value_args(rest)?;
+-                    self.emit(Op::CallBuiltinRefCell {
+-                        name: name.into(),
+-                        argc: rest.len() as u32,
+-                    });
++                    self.emit_ref_cell_rest(name, rest)?;
+                     self.clear_temp_binding(root_tmp);
+                     self.free_temp();
+                     return Ok(());
+@@ -2059,6 +2027,42 @@
+                 ))
+             }
+         }
++    }
++
++    fn emit_ref_builtin_rest(&mut self, name: &[u8], slot: crate::hir::Slot, rest: &[Expr]) -> R<()> {
++        if rest.iter().any(|a| matches!(a.kind, ExprKind::Spread(_))) {
++            let mut spreads = Vec::with_capacity(rest.len());
++            for a in rest {
++                if let ExprKind::Spread(src) = &a.kind {
++                    self.expr(src)?;
++                    spreads.push(true);
++                } else {
++                    self.expr(a)?;
++                    spreads.push(false);
++                }
++            }
++            self.emit(Op::CallBuiltinRefSpread { name: name.into(), slot, spreads: spreads.into() });
++        } else {
++            self.push_value_args(rest)?;
++            self.emit(Op::CallBuiltinRef { name: name.into(), slot, argc: rest.len() as u32 });
++        }
++        Ok(())
++    }
++
++    /// Bind the already evaluated field cell to a fresh temporary for spread calls.
++    fn emit_ref_cell_rest(&mut self, name: &[u8], rest: &[Expr]) -> R<()> {
++        if rest.iter().any(|a| matches!(a.kind, ExprKind::Spread(_))) {
++            let slot = self.alloc_temp();
++            self.emit(Op::BindRefTo { base: FieldBase::Local(slot), steps: [].into() });
++            self.emit(Op::Pop);
++            self.emit_ref_builtin_rest(name, slot, rest)?;
++            self.clear_temp_binding(slot);
++            self.free_temp();
++        } else {
++            self.push_value_args(rest)?;
++            self.emit(Op::CallBuiltinRefCell { name: name.into(), argc: rest.len() as u32 });
++        }
++        Ok(())
+     }
+ 
+     /// Emit the run-time constructor invocation for `new static` / `new $cls` (the

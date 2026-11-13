@@ -1,0 +1,198 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/dom.rs b/php-rust/crates/php-runtime/src/vm/dom.rs
+--- a/php-rust/crates/php-runtime/src/vm/dom.rs
++++ b/php-rust/crates/php-runtime/src/vm/dom.rs
+@@ -2059,6 +2059,7 @@
+ pub(super) enum XItem {
+     Node(usize),
+     Attr(usize, Vec<u8>),
++    Namespace(usize, Vec<u8>, Vec<u8>),
+ }
+ 
+ /// An XPath value (node-set or scalar), for `evaluate()`.
+@@ -2076,6 +2077,7 @@
+     Descendant,
+     DescendantOrSelf,
+     Attribute,
++    Namespace,
+     SelfAxis,
+     Parent,
+ }
+@@ -2289,6 +2291,7 @@
+         while self.src.get(self.pos).is_some_and(|b| {
+             b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.' | b':')
+         }) {
++            if self.src[self.pos..].starts_with(b"::") { break; }
+             self.pos += 1;
+         }
+         Some(self.src[start..self.pos].to_vec())
+@@ -2345,6 +2348,7 @@
+                         b"descendant" => Axis::Descendant,
+                         b"descendant-or-self" => Axis::DescendantOrSelf,
+                         b"attribute" => Axis::Attribute,
++                        b"namespace" => Axis::Namespace,
+                         b"self" => Axis::SelfAxis,
+                         b"parent" => Axis::Parent,
+                         other => {
+@@ -2519,7 +2523,29 @@
+                 }
+                 (Axis::Attribute, XItem::Node(n)) => {
+                     if let DomKind::Element { attrs, .. } = &self.doc.nodes[*n].kind {
+-                        cand.extend(attrs.iter().map(|(k, _)| XItem::Attr(*n, k.clone())));
++                        cand.extend(attrs.iter().filter(|(k, _)| k != b"xmlns" && !k.starts_with(b"xmlns:")).map(|(k, _)| XItem::Attr(*n, k.clone())));
++                    }
++                }
++                (Axis::Namespace, XItem::Node(n)) => {
++                    if matches!(&self.doc.nodes[*n].kind, DomKind::Element { .. }) {
++                        let mut declarations: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
++                        let mut cursor = Some(*n);
++                        while let Some(owner) = cursor {
++                            if let DomKind::Element { attrs, .. } = &self.doc.nodes[owner].kind {
++                                for (name, uri) in attrs {
++                                    let prefix = if name == b"xmlns" { Some(&name[..0]) }
++                                        else { name.strip_prefix(b"xmlns:") };
++                                    if let Some(prefix) = prefix {
++                                        if prefix != b"xml" && !declarations.iter().any(|(p, _)| p == prefix) {
++                                            declarations.push((prefix.to_vec(), uri.clone()));
++                                        }
++                                    }
++                                }
++                            }
++                            cursor = self.doc.nodes[owner].parent;
++                        }
++                        cand.push(XItem::Namespace(*n, b"xml".to_vec(), b"http://www.w3.org/XML/1998/namespace".to_vec()));
++                        cand.extend(declarations.into_iter().rev().map(|(prefix, uri)| XItem::Namespace(*n, prefix, uri)));
+                     }
+                 }
+                 (Axis::SelfAxis, it) => cand.push(it.clone()),
+@@ -2528,7 +2554,7 @@
+                         cand.push(XItem::Node(p));
+                     }
+                 }
+-                (Axis::Parent, XItem::Attr(n, _)) => cand.push(XItem::Node(*n)),
++                (Axis::Parent, XItem::Attr(n, _) | XItem::Namespace(n, _, _)) => cand.push(XItem::Node(*n)),
+                 _ => {}
+             }
+             // Node test.
+@@ -2577,6 +2603,9 @@
+     fn test_matches(&self, item: &XItem, test: &NodeTest) -> bool {
+         match (item, test) {
+             (_, NodeTest::NodeAny) => true,
++            (XItem::Namespace(_, prefix, _), NodeTest::Name(want)) => prefix == want,
++            (XItem::Namespace(..), NodeTest::Any) => true,
++            (XItem::Namespace(..), _) => false,
+             (XItem::Attr(_, name), NodeTest::Name(want)) => {
+                 self.qname_matches(None, name, want)
+             }
+@@ -2720,6 +2749,7 @@
+                 let full = match &it {
+                     Some(XItem::Node(n)) => self.doc.nodes[*n].kind.node_name(),
+                     Some(XItem::Attr(_, a)) => a.clone(),
++                    Some(XItem::Namespace(_, prefix, _)) => prefix.clone(),
+                     None => Vec::new(),
+                 };
+                 let out = if name == b"local-name" {
+@@ -2760,7 +2790,7 @@
+                         Some(i) => self.doc.resolve_ns(*n, &a[..i]).unwrap_or_default(),
+                         None => Vec::new(),
+                     },
+-                    None => Vec::new(),
++                    Some(XItem::Namespace(..)) | None => Vec::new(),
+                 };
+                 Ok(XVal::Str(out))
+             }
+@@ -2777,6 +2807,7 @@
+             Some(XItem::Attr(n, a)) => {
+                 self.doc.attr(*n, a).map(|v| v.to_vec()).unwrap_or_default()
+             }
++            Some(XItem::Namespace(_, _, uri)) => uri.clone(),
+             None => Vec::new(),
+         }
+     }
+@@ -2867,6 +2898,12 @@
+         XItem::Node(n) => {
+             let _ = arr.append(Zval::Str(PhpStr::new(b"n".to_vec())));
+             let _ = arr.append(Zval::Long(*n as i64));
++        }
++        XItem::Namespace(n, prefix, uri) => {
++            let _ = arr.append(Zval::Str(PhpStr::new(b"ns".to_vec())));
++            let _ = arr.append(Zval::Long(*n as i64));
++            let _ = arr.append(Zval::Str(PhpStr::new(prefix.clone())));
++            let _ = arr.append(Zval::Str(PhpStr::new(uri.clone())));
+         }
+         XItem::Attr(n, name) => {
+             let _ = arr.append(Zval::Str(PhpStr::new(b"a".to_vec())));
+@@ -3376,6 +3413,7 @@
+             _ => {
+                 let mut arr = PhpArray::new();
+                 for (k, _) in attrs.iter() {
++                    if k == b"xmlns" || k.starts_with(b"xmlns:") { continue; }
+                     let _ = arr.append(Zval::Str(PhpStr::new(k.clone())));
+                 }
+                 Zval::Array(Rc::new(arr))
+diff --git a/php-rust/crates/php-runtime/src/lower/prelude/dom.php b/php-rust/crates/php-runtime/src/lower/prelude/dom.php
+--- a/php-rust/crates/php-runtime/src/lower/prelude/dom.php
++++ b/php-rust/crates/php-runtime/src/lower/prelude/dom.php
+@@ -686,6 +686,41 @@
+     }
+ }
+ 
++// XPath namespace nodes have their own PHP type, not DOMNode inheritance.
++class DOMNameSpaceNode {
++    private $__doc;
++    private $__owner;
++    private $__prefix;
++    private $__uri;
++    public static function __make($doc, $owner, $prefix, $uri) {
++        $n = new DOMNameSpaceNode();
++        $n->__doc = $doc; $n->__owner = $owner;
++        $n->__prefix = $prefix; $n->__uri = $uri;
++        return $n;
++    }
++    public function __get($name) {
++        switch ($name) {
++            case 'nodeName': return $this->__prefix === '' ? 'xmlns' : 'xmlns:' . $this->__prefix;
++            case 'nodeValue': return $this->__uri === '' ? null : $this->__uri;
++            case 'nodeType': return 18;
++            case 'prefix': return $this->__prefix;
++            case 'localName': return $this->__prefix === '' ? 'xmlns' : $this->__prefix;
++            case 'namespaceURI': return $this->__uri;
++            case 'ownerDocument': return DOMNode::__wrap($this->__doc, 0);
++            case 'parentNode': return DOMNode::__wrap($this->__doc, $this->__owner);
++        }
++        trigger_error('Undefined property: DOMNameSpaceNode::$' . $name, E_USER_WARNING);
++        return null;
++    }
++    public function __isset($name) {
++        if (!in_array($name, ['nodeName', 'nodeValue', 'nodeType', 'prefix', 'localName', 'namespaceURI', 'ownerDocument', 'parentNode'], true)) { return false; }
++        return $this->__get($name) !== null;
++    }
++    public function __set($name, $value) {
++        throw new Error('Cannot modify readonly property DOMNameSpaceNode::$' . $name);
++    }
++}
++
+ class DOMXPath {
+     public $document;
+     public $__ns = array();
+@@ -709,7 +744,9 @@
+     public function __wrapAll($items) {
+         $out = array();
+         foreach ($items as $it) {
+-            if ($it[0] === 'a') {
++            if ($it[0] === 'ns') {
++                $out[] = DOMNameSpaceNode::__make($this->document->__d, $it[1], $it[2], $it[3]);
++            } elseif ($it[0] === 'a') {
+                 $out[] = DOMAttr::__wrapAttr($this->document->__d, $it[1], $it[2]);
+             } else {
+                 $out[] = DOMNode::__wrap($this->document->__d, $it[1]);
+@@ -765,7 +802,9 @@
+         if (!is_array($r)) { return false; }
+         $out = array();
+         foreach ($r as $it) {
+-            if ($it[0] === 'a') {
++            if ($it[0] === 'ns') {
++                continue;
++            } elseif ($it[0] === 'a') {
+                 $out[] = SimpleXMLElement::__mk($this->__d, 'a', $it[1], -1, $it[2]);
+             } else {
+                 $out[] = SimpleXMLElement::__mk($this->__d, 'e', $it[1]);

@@ -31,3 +31,16 @@ static-property-reference.patch
 spl-fileinfo-ctime.patch
 xmlwriter-memory.patch
 callable-unpack-reference.patch
+fiber-generator-continuation.patch
+dom-namespace-axis.patch
+preg-extended-comments.patch
+multisort-stringable.patch
+user-wrapper-write.patch
+stream-wrapper-registry.patch
+fiber-generator-collector.patch
+ref-builtin-field-spread.patch
+function-reference-forward.patch
+static-reference-value.patch
+preg-binary-replacement.patch
+date-current-errors.patch
+mb-stringable.patch

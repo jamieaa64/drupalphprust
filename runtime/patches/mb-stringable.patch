@@ -1,0 +1,45 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/calls.rs b/php-rust/crates/php-runtime/src/vm/calls.rs
+--- a/php-rust/crates/php-runtime/src/vm/calls.rs
++++ b/php-rust/crates/php-runtime/src/vm/calls.rs
+@@ -52,6 +52,8 @@
+             | b"strlen"
+             | b"strtolower"
+             | b"strtoupper"
++            | b"mb_strtolower"
++            | b"mb_strtoupper"
+             | b"ucfirst"
+             | b"lcfirst"
+             | b"ucwords"
+diff --git a/php-rust/crates/php-builtins/src/mbstring.rs b/php-rust/crates/php-builtins/src/mbstring.rs
+--- a/php-rust/crates/php-builtins/src/mbstring.rs
++++ b/php-rust/crates/php-builtins/src/mbstring.rs
+@@ -14,7 +14,7 @@
+     let v = args
+         .first()
+         .ok_or_else(|| PhpError::Error(format!("{func}() expects at least 1 argument, 0 given")))?;
+-    Ok(convert::to_zstr(v, ctx.diags))
++    Ok(ctx.to_zstr(v))
+ }
+ 
+ /// True for the encoding names batch 1 treats as UTF-8 (ASCII is a subset).
+@@ -39,10 +39,7 @@
+     }
+ }
+ 
+-/// Validate an optional trailing `$encoding` argument at `idx`. Absent or null
+-/// means the internal encoding (UTF-8). A non-UTF-8 name raises the same
+-/// `ValueError` PHP raises for an unknown encoding (D-MB1: valid-but-non-UTF-8
+-/// encodings are reported as invalid until a transcoding batch lands).
++/// Validate an optional trailing encoding using any VM-precomputed Stringable.
+ fn require_utf8(
+     args: &[Zval],
+     idx: usize,
+@@ -54,7 +51,7 @@
+     match args.get(idx) {
+         None | Some(Zval::Null) => Ok(()),
+         Some(v) => {
+-            let enc = convert::to_zstr(v, ctx.diags);
++            let enc = ctx.to_zstr(v);
+             if is_utf8_alias(enc.as_bytes()) {
+                 Ok(())
+             } else {

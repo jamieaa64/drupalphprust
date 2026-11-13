@@ -1,0 +1,105 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/host.rs b/php-rust/crates/php-runtime/src/vm/host.rs
+--- a/php-rust/crates/php-runtime/src/vm/host.rs
++++ b/php-rust/crates/php-runtime/src/vm/host.rs
+@@ -230,6 +230,17 @@
+     pub(super) fn ho_iterator_to_array(&mut self, args: Vec<Zval>) -> Result<Zval, PhpError> {
+         let src = args.first().cloned().unwrap_or(Zval::Null);
+         let preserve = args.get(1).is_none_or(|v| convert::to_bool(v, &mut self.diags));
++        if let Zval::Generator(rc) = src.deref_clone() {
++            let status = rc.borrow().status;
++            if matches!(status, GenStatus::Done) {
++                return Err(self.gen_exception("Cannot traverse an already closed generator"));
++            }
++            if rc.borrow().advanced {
++                return Err(self.gen_exception("Cannot rewind a generator that was already run"));
++            }
++            let out = Rc::new(RefCell::new(PhpArray::new()));
++            return self.collect_generator_continuation(&rc, out, preserve, matches!(status, GenStatus::Suspended));
++        }
+         let pairs = self.iter_pairs(src)?;
+         let mut out = PhpArray::new();
+         for (k, v) in pairs {
+diff --git a/php-rust/crates/php-runtime/src/vm/generator_continuation.rs b/php-rust/crates/php-runtime/src/vm/generator_continuation.rs
+--- a/php-rust/crates/php-runtime/src/vm/generator_continuation.rs
++++ b/php-rust/crates/php-runtime/src/vm/generator_continuation.rs
+@@ -4,6 +4,7 @@
+ pub(super) enum GeneratorAfter {
+     Foreach { value: u32, key: Option<u32>, end: u32 },
+     YieldFrom,
++    Collect { out: Rc<RefCell<PhpArray>>, preserve: bool },
+     Method { method: Vec<u8>, next: Option<Zval> },
+ }
+ 
+@@ -53,6 +54,45 @@
+         }
+     }
+ 
++    /// Retain the collector across suspension instead of replaying generator work.
++    pub(super) fn collect_generator_continuation(&mut self, rc: &Rc<RefCell<GenState>>, out: Rc<RefCell<PhpArray>>, preserve: bool, mut ready: bool) -> Result<Zval, PhpError> {
++        loop {
++            if !ready {
++                let result = self.resume_generator_with(rc, Zval::Null, Some(GeneratorAfter::Collect { out: Rc::clone(&out), preserve }));
++                if let Err(error) = result {
++                    if !matches!(error, PhpError::FiberSuspend(_)) {
++                        let values = std::mem::take(&mut *out.borrow_mut());
++                        self.gc_note(&Zval::Array(Rc::new(values)));
++                    }
++                    return Err(error);
++                }
++            }
++            let (done, key, value) = {
++                let gs = rc.borrow();
++                (matches!(gs.status, GenStatus::Done), gs.cur_key.clone(), gs.cur_val.clone())
++            };
++            if done {
++                return Ok(Zval::Array(Rc::new(std::mem::take(&mut *out.borrow_mut()))));
++            }
++            if preserve {
++                let Some(key_index) = coerce_key_silent(&key) else {
++                    let values = std::mem::take(&mut *out.borrow_mut());
++                    self.gc_note(&Zval::Array(Rc::new(values)));
++                    return Err(PhpError::TypeError(format!(
++                        "Cannot access offset of type {} on array", key.type_name_for_error()
++                    )));
++                };
++                if let Some(previous) = out.borrow().get(&key_index) {
++                    self.gc_note(previous);
++                }
++                out.borrow_mut().insert(key_index, value);
++            } else {
++                let _ = out.borrow_mut().append(value);
++            }
++            ready = false;
++        }
++    }
++
+     fn finish_generator_drive(&mut self, drive: GeneratorDrive) -> Result<(), PhpError> {
+         match drive.after {
+             GeneratorAfter::Foreach { value, key, end } => {
+@@ -64,6 +104,10 @@
+                     if let Some(key) = key { store_slot(&mut f.slots[key as usize], gs.cur_key.clone()); }
+                 }
+             }
++            GeneratorAfter::Collect { out, preserve } => {
++                let value = self.collect_generator_continuation(&drive.generator, out, preserve, true)?;
++                self.frames[drive.consumer].stack.push(value);
++            }
+             GeneratorAfter::YieldFrom => {
+                 let f = &mut self.frames[drive.consumer];
+                 f.ext_mut().generator_ready = true;
+@@ -83,8 +127,13 @@
+     }
+ 
+ fn discard_generator_drive(&mut self, drive: GeneratorDrive) {
+-        if let GeneratorAfter::Method { next: Some(value), .. } = drive.after {
+-            self.gc_note(&value);
++        match drive.after {
++            GeneratorAfter::Method { next: Some(value), .. } => self.gc_note(&value),
++            GeneratorAfter::Collect { out, .. } => {
++                let values = std::mem::take(&mut *out.borrow_mut());
++                self.gc_note(&Zval::Array(Rc::new(values)));
++            }
++            _ => {}
+         }
+         let (key, value) = {
+             let mut gs = drive.generator.borrow_mut();

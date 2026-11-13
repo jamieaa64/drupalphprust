@@ -1,0 +1,562 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/coroutines.rs b/php-rust/crates/php-runtime/src/vm/coroutines.rs
+--- a/php-rust/crates/php-runtime/src/vm/coroutines.rs
++++ b/php-rust/crates/php-runtime/src/vm/coroutines.rs
+@@ -37,6 +37,9 @@
+             Some(c) => (c.id, c.baseline),
+             None => return Err(PhpError::Error("Cannot suspend outside of a fiber".to_string())),
+         };
++        if self.suspension_guards.contains(&Some(id)) {
++            return Err(PhpError::Error("Cannot suspend through this synchronous callback helper".into()));
++        }
+         if args.iter().any(|a| matches!(a, Zval::ArgPlace(_))) {
+             self.materialize_arg_places(top, args, None)?;
+         }
+@@ -50,8 +53,7 @@
+             }
+             value = v.deref_clone();
+         }
+-        let parked = self.frames.split_off(baseline);
+-        self.fibers.get_mut(&id).expect("running fiber state").parked = parked;
++        let _ = (id, baseline); // The owning Fiber driver parks the complete continuation.
+         Ok(NativeFiberCall::Suspended(value))
+     }
+ 
+@@ -83,9 +85,14 @@
+     /// auto-key resolution. `sent` is the value the suspended `yield` expression
+     /// evaluates to (NULL for `next()`/`foreach`).
+     pub(super) fn resume_generator(
+-        &mut self,
+-        gs_rc: &Rc<RefCell<GenState>>,
+-        sent: Zval,
++        &mut self, gs_rc: &Rc<RefCell<GenState>>, sent: Zval,
++    ) -> Result<(), PhpError> {
++        self.resume_generator_with(gs_rc, sent, None)
++    }
++
++    pub(super) fn resume_generator_with(
++        &mut self, gs_rc: &Rc<RefCell<GenState>>, sent: Zval,
++        after: Option<GeneratorAfter>,
+     ) -> Result<(), PhpError> {
+         let was_suspended = {
+             let mut gs = gs_rc.borrow_mut();
+@@ -118,6 +125,8 @@
+         // Run the body until it yields/returns; route its *own* exceptions through
+         // `unwind` with the generator frame as the floor, so a `try` inside the
+         // generator is honoured and an uncaught throw surfaces at the resume site.
++        let guarded = after.is_none();
++        if guarded { self.suspension_guards.push(self.fiber_stack.last().map(|c| c.id)); }
+         let outcome = loop {
+             match self.run_loop(baseline) {
+                 Ok(exit) => break Ok(exit),
+@@ -127,6 +136,7 @@
+                 },
+             }
+         };
++        if guarded { self.suspension_guards.pop(); }
+         match outcome {
+             Ok(RunExit::Yielded { key, value }) => {
+                 // The frame was already parked by `Op::Yield` / `Op::YieldFrom`.
+@@ -159,16 +169,22 @@
+                 gs.status = GenStatus::Done;
+                 Ok(())
+             }
+-            Ok(RunExit::Suspended { .. }) => {
+-                // `Fiber::suspend` reached across a generator resume (a fiber
+-                // suspended from within a generator that is itself inside the
+-                // fiber). This pathological nesting is out of scope; fail cleanly.
+-                let mut gs = gs_rc.borrow_mut();
+-                gs.status = GenStatus::Done;
+-                Err(PhpError::Error(
+-                    "VM: cannot suspend a Fiber from within a Generator (unsupported nesting)"
+-                        .to_string(),
+-                ))
++            Ok(RunExit::Suspended { value }) | Err(PhpError::FiberSuspend(value)) => {
++                if let Some(after) = after {
++                    self.suspension_drives.push(GeneratorDrive {
++                        baseline, consumer: baseline - 1, generator: Rc::clone(gs_rc), after,
++                    });
++                    Err(PhpError::FiberSuspend(value))
++                } else {
++                    self.discard_generator_captures(baseline);
++                    while self.frames.len() > baseline {
++                        let frame = self.frames.pop().expect("unsupported generator frame");
++                        self.gc_note_frame(&frame);
++                        self.recycle_frame(frame);
++                    }
++                    gs_rc.borrow_mut().status = GenStatus::Done;
++                    Err(PhpError::Error("Suspension through this synchronous generator consumer is not supported".into()))
++                }
+             }
+             Err(e) => {
+                 // Uncaught inside the generator: `unwind` left the dead frame at
+@@ -215,67 +231,30 @@
+         }
+     }
+ 
+-    /// Dispatch a built-in `Generator` method (GEN), returning the value to leave
+-    /// on the caller's stack. Mirrors `eval::generator_method`.
+     pub(super) fn generator_method(
+-        &mut self,
+-        gs_rc: Rc<RefCell<GenState>>,
+-        method: &[u8],
+-        args: Vec<Zval>,
++        &mut self, gs_rc: Rc<RefCell<GenState>>, method: &[u8], args: Vec<Zval>,
+     ) -> Result<Zval, PhpError> {
+-        match method.to_ascii_lowercase().as_slice() {
+-            b"current" => {
+-                self.ensure_started(&gs_rc)?;
+-                Ok(gs_rc.borrow().cur_val.clone())
+-            }
+-            b"key" => {
+-                self.ensure_started(&gs_rc)?;
+-                Ok(gs_rc.borrow().cur_key.clone())
+-            }
+-            b"next" => {
+-                self.ensure_started(&gs_rc)?;
+-                self.resume_generator(&gs_rc, Zval::Null)?;
+-                Ok(Zval::Null)
+-            }
+-            b"valid" => {
+-                self.ensure_started(&gs_rc)?;
+-                let valid = !matches!(gs_rc.borrow().status, GenStatus::Done);
+-                Ok(Zval::Bool(valid))
+-            }
+-            b"rewind" => {
+-                self.ensure_started(&gs_rc)?;
+-                if gs_rc.borrow().advanced {
+-                    return Err(self.gen_exception("Cannot rewind a generator that was already run"));
+-                }
+-                Ok(Zval::Null)
+-            }
+-            b"send" => {
+-                // Deliver `$value` as the suspended `yield`'s result and advance;
+-                // an unstarted generator is primed first (GEN-2). Returns the next
+-                // yielded value (NULL once the generator is done).
+-                let value = args.into_iter().next().unwrap_or(Zval::Null);
+-                if matches!(gs_rc.borrow().status, GenStatus::NotStarted) {
+-                    self.resume_generator(&gs_rc, Zval::Null)?;
+-                }
+-                self.resume_generator(&gs_rc, value)?;
+-                Ok(gs_rc.borrow().cur_val.clone())
+-            }
+-            b"getreturn" => {
+-                // PHP auto-primes: getReturn() on a fresh generator starts it (so a
+-                // body that returns before any yield exposes its value); before the
+-                // body has returned, it is an error (GEN-2).
+-                self.ensure_started(&gs_rc)?;
+-                if !matches!(gs_rc.borrow().status, GenStatus::Done) {
+-                    return Err(self
+-                        .gen_exception("Cannot get return value of a generator that hasn't returned"));
+-                }
+-                Ok(gs_rc.borrow().ret.clone())
+-            }
+-            other => Err(PhpError::Error(format!(
+-                "Call to undefined method Generator::{}()",
+-                String::from_utf8_lossy(other)
+-            ))),
+-        }
++        let method = method.to_ascii_lowercase();
++        if !matches!(method.as_slice(), b"current" | b"key" | b"next" | b"valid" | b"rewind" | b"send" | b"getreturn") {
++            return self.generator_result(&gs_rc, &method);
++        }
++        let advance = match method.as_slice() {
++            b"next" => Some(Zval::Null),
++            b"send" => Some(args.into_iter().next().unwrap_or(Zval::Null)),
++            _ => None,
++        };
++        let fresh = matches!(gs_rc.borrow().status, GenStatus::NotStarted);
++        if fresh {
++            self.resume_generator_with(&gs_rc, Zval::Null, Some(GeneratorAfter::Method {
++                method: method.clone(), next: advance.clone(),
++            }))?;
++        }
++        if let Some(value) = advance {
++            self.resume_generator_with(&gs_rc, value, Some(GeneratorAfter::Method {
++                method: method.clone(), next: None,
++            }))?;
++        }
++        self.generator_result(&gs_rc, &method)
+     }
+ 
+     /// The current status of fiber `id` (GEN-4); a missing entry means the fiber
+@@ -311,15 +290,7 @@
+                 self.error_level &= 4437;
+             }
+         }
+-        let outcome = loop {
+-            match self.run_loop(baseline) {
+-                Ok(exit) => break Ok(exit),
+-                Err(e) => match self.unwind(e, baseline) {
+-                    None => continue,
+-                    Some(e) => break Err(e),
+-                },
+-            }
+-        };
++        let outcome = self.run_fiber_segment(id, baseline);
+         self.fiber_stack.pop();
+         // Park the fiber's suppression state (survives a suspend inside `@`)
+         // and restore the caller's — including the caller's silence mask on
+@@ -399,6 +370,7 @@
+             FiberState {
+                 status: FiberStatus::Running,
+                 parked: Vec::new(),
++                generator_drives: Vec::new(),
+                 ret: Zval::Null,
+                 suppress: (0, Vec::new(), Vec::new()),
+             },
+@@ -437,6 +409,10 @@
+         let value = args.into_iter().next().unwrap_or(Zval::Null);
+         let parked = std::mem::take(&mut self.fibers.get_mut(&id).expect("fiber state").parked);
+         let baseline = self.frames.len();
++        for drive in &mut self.fibers.get_mut(&id).expect("fiber state").generator_drives {
++            drive.baseline += baseline;
++            drive.consumer += baseline;
++        }
+         self.frames.extend(parked);
+         // The suspended `Fiber::suspend(...)` call evaluates to the resume value.
+         self.frames.last_mut().expect("restored fiber frame").stack.push(value);
+diff --git a/php-rust/crates/php-runtime/src/vm/run.rs b/php-rust/crates/php-runtime/src/vm/run.rs
+--- a/php-rust/crates/php-runtime/src/vm/run.rs
++++ b/php-rust/crates/php-runtime/src/vm/run.rs
+@@ -3353,10 +3353,10 @@
+                         _ => None,
+                     };
+                     if let Some((rc, was_primed)) = gen {
+-                        if was_primed {
+-                            self.resume_generator(&rc, Zval::Null)?;
+-                        } else {
+-                            self.ensure_started(&rc)?;
++                        if was_primed || matches!(rc.borrow().status, GenStatus::NotStarted) {
++                            self.resume_generator_with(&rc, Zval::Null, Some(GeneratorAfter::Foreach {
++                                value: *value, key: *key, end: *end,
++                            }))?;
+                         }
+                         let (k, v, done) = {
+                             let gs = rc.borrow();
+@@ -4395,7 +4395,10 @@
+                     // one delegated step per visit. First visit sets up the cursor
+                     // from the delegate on the stack; a re-visit pops the resume's
+                     // sent value (forwarded into a sub-generator, ignored by arrays).
+-                    if self.frames[top].ext().is_none_or(|e| e.yield_from.is_none()) {
++                    let ready = self.frames[top].ext_opt_mut().is_some_and(|e| std::mem::take(&mut e.generator_ready));
++                    if ready {
++                        // The saved generator advance completed after a Fiber resume.
++                    } else if self.frames[top].ext().is_none_or(|e| e.yield_from.is_none()) {
+                         let delegate = self.frames[top].stack.pop().expect("YieldFrom delegate");
+                         match delegate.deref_clone() {
+                             Zval::Array(_) => {
+@@ -4406,7 +4409,9 @@
+                             Zval::Generator(rc) => {
+                                 self.frames[top].ext_mut().yield_from =
+                                     Some(YieldFromState::Gen { rc: Rc::clone(&rc), opaque: false });
+-                                self.ensure_started(&rc)?; // prime to its first yield
++                                if matches!(rc.borrow().status, GenStatus::NotStarted) {
++                                    self.resume_generator_with(&rc, Zval::Null, Some(GeneratorAfter::YieldFrom))?;
++                                }
+                             }
+                             Zval::Object(_) if self.object_is_traversable(&delegate) => {
+                                 // A Traversable delegate (Symfony Finder pipes
+@@ -4422,7 +4427,9 @@
+                                     TraversableSource::Gen(rc) => {
+                                         self.frames[top].ext_mut().yield_from =
+                                             Some(YieldFromState::Gen { rc: Rc::clone(&rc), opaque: true });
+-                                        self.ensure_started(&rc)?;
++                                        if matches!(rc.borrow().status, GenStatus::NotStarted) {
++                                            self.resume_generator_with(&rc, Zval::Null, Some(GeneratorAfter::YieldFrom))?;
++                                        }
+                                     }
+                                     TraversableSource::Entries(entries) => {
+                                         self.frames[top].ext_mut().yield_from =
+@@ -4445,7 +4452,7 @@
+                             _ => None,
+                         };
+                         if let Some(rc) = sub {
+-                            self.resume_generator(&rc, sent)?;
++                            self.resume_generator_with(&rc, sent, Some(GeneratorAfter::YieldFrom))?;
+                         }
+                     }
+                     // Take the next delegated `(key, value)`, or finish.
+diff --git a/php-rust/crates/php-runtime/src/vm/mod.rs b/php-rust/crates/php-runtime/src/vm/mod.rs
+--- a/php-rust/crates/php-runtime/src/vm/mod.rs
++++ b/php-rust/crates/php-runtime/src/vm/mod.rs
+@@ -74,6 +74,8 @@
+ #[cfg(feature = "sonda-price")]
+ mod sondaprice;
+ mod coroutines;
++mod generator_continuation;
++use generator_continuation::{GeneratorAfter, GeneratorDrive};
+ mod dom;
+ mod xmlwriter;
+ pub mod cli_stream;
+@@ -200,6 +202,7 @@
+ struct FiberState<'m> {
+     status: FiberStatus,
+     parked: Vec<Frame<'m>>,
++    generator_drives: Vec<GeneratorDrive>,
+     ret: Zval,
+     /// The fiber's own `@` suppression state (depth, diag marks, saved
+     /// error_reporting levels), parked at suspend: error suppression is
+@@ -789,6 +792,8 @@
+         shutdown_fns: Vec::new(),
+         generators: HashMap::default(),
+         fibers: HashMap::default(),
++        suspension_drives: Vec::new(),
++        suspension_guards: Vec::new(),
+         fiber_stack: Vec::new(),
+         fiber_class_id: module.class_index.get(&b"fiber"[..]).copied(),
+         throwable_id: module.class_index.get(&b"throwable"[..]).copied(),
+@@ -2615,6 +2620,7 @@
+ /// LOAD-BEARING — see the `ext` field doc.
+ #[derive(Default)]
+ struct FrameExt {
++    generator_ready: bool,
+     /// Magic-accessor recursion-guard keys to remove from [`Vm::magic_guard`]
+     /// when this frame returns (OOP-3b). Usually zero or one; a guard
+     /// transferred across proxy forwarding (gh18038) appends here too.
+@@ -3422,6 +3428,8 @@
+     /// entry exists once the fiber has been started; its `parked` segment holds
+     /// the whole suspended call stack while the fiber is `Suspended`.
+     fibers: HashMap<u32, FiberState<'m>>,
++    suspension_drives: Vec<GeneratorDrive>,
++    suspension_guards: Vec<Option<u32>>,
+     /// The stack of currently-running fibers (GEN-4), innermost last. Backs
+     /// `Fiber::suspend` (which parks `frames[ctx.baseline..]`) and
+     /// `Fiber::getCurrent`.
+@@ -3851,6 +3859,8 @@
+         self.frames.clear();
+         self.generators.clear();
+         self.fibers.clear();
++        self.suspension_drives.clear();
++        self.suspension_guards.clear();
+         self.fiber_stack.clear();
+         self.shutdown_fns.clear();
+ 
+diff --git a/php-rust/crates/php-runtime/src/vm/exceptions.rs b/php-rust/crates/php-runtime/src/vm/exceptions.rs
+--- a/php-rust/crates/php-runtime/src/vm/exceptions.rs
++++ b/php-rust/crates/php-runtime/src/vm/exceptions.rs
+@@ -186,6 +186,7 @@
+     /// exception uncaught inside the generator surfaces at the resume site (the
+     /// resumer then pops the dead generator frame).
+     pub(super) fn unwind(&mut self, e: PhpError, floor: usize) -> Option<PhpError> {
++        if matches!(e, PhpError::FiberSuspend(_)) || self.frames.len() <= floor { return Some(e); }
+         log::debug!(
+             target: "phpr::exc",
+             "unwind: {} \"{}\" (floor {}, depth {})",
+diff --git a/php-rust/crates/php-runtime/src/vm/calls.rs b/php-rust/crates/php-runtime/src/vm/calls.rs
+--- a/php-rust/crates/php-runtime/src/vm/calls.rs
++++ b/php-rust/crates/php-runtime/src/vm/calls.rs
+@@ -1105,6 +1105,8 @@
+     /// (B1) and [`Self::vm_stringify`] (D2) — both run a freshly-pushed frame to its
+     /// `Ret` from inside a host builtin.
+     pub(super) fn drive_to_return(&mut self, baseline: usize) -> Result<Zval, PhpError> {
++        let guarded = true;
++        if guarded { self.suspension_guards.push(self.fiber_stack.last().map(|c| c.id)); }
+         let outcome = loop {
+             match self.run_loop(baseline) {
+                 Ok(exit) => break Ok(exit),
+@@ -1113,6 +1115,16 @@
+                     Some(e) => break Err(e),
+                 },
+             }
++        };
++        if guarded { self.suspension_guards.pop(); }
++        let outcome = match outcome {
++            Ok(RunExit::Suspended { .. }) | Err(PhpError::FiberSuspend(_)) => {
++                // This native helper has no resumable post-call operation yet.
++                // Reject explicitly while frames are still live, before cleanup.
++                self.discard_generator_captures(baseline);
++                Err(PhpError::Error("Cannot suspend through this synchronous callback helper".into()))
++            }
++            other => other,
+         };
+         match outcome {
+             Ok(RunExit::Returned(v)) => Ok(v),
+diff --git a/php-rust/crates/php-types/src/diag.rs b/php-rust/crates/php-types/src/diag.rs
+--- a/php-rust/crates/php-types/src/diag.rs
++++ b/php-rust/crates/php-types/src/diag.rs
+@@ -69,6 +69,8 @@
+     /// (already normalised to `0..=255`). Any message argument was emitted to
+     /// stdout before this was raised.
+     Exit(u8),
++    /// Internal VM control transfer; never a PHP throwable.
++    FiberSuspend(crate::Zval),
+ }
+ 
+ impl PhpError {
+@@ -89,6 +91,7 @@
+             // keep the accessor total; they are never read as real class names.
+             PhpError::FatalAt { .. } => "Fatal",
+             PhpError::Exit(_) => "Exit",
++            PhpError::FiberSuspend(_) => "FiberSuspend",
+         }
+     }
+ 
+@@ -104,6 +107,7 @@
+             PhpError::FatalAt { msg, .. } => msg,
+             PhpError::Thrown(_) => "",
+             PhpError::Exit(_) => "",
++            PhpError::FiberSuspend(_) => "",
+         }
+     }
+ 
+diff --git a/php-rust/crates/php-runtime/src/vm/generator_continuation.rs b/php-rust/crates/php-runtime/src/vm/generator_continuation.rs
+new file mode 100644
+--- /dev/null
++++ b/php-rust/crates/php-runtime/src/vm/generator_continuation.rs
+@@ -0,0 +1,156 @@
++//! Generator operations that survive a Fiber suspension. No PHP operation is replayed.
++use super::*;
++
++pub(super) enum GeneratorAfter {
++    Foreach { value: u32, key: Option<u32>, end: u32 },
++    YieldFrom,
++    Method { method: Vec<u8>, next: Option<Zval> },
++}
++
++pub(super) struct GeneratorDrive {
++    pub(super) baseline: usize,
++    pub(super) consumer: usize,
++    pub(super) generator: Rc<RefCell<GenState>>,
++    pub(super) after: GeneratorAfter,
++}
++
++impl<'m> Vm<'m> {
++    fn accept_generator_exit(&mut self, rc: &Rc<RefCell<GenState>>, exit: RunExit) {
++        let mut gs = rc.borrow_mut();
++        match exit {
++            RunExit::Yielded { key, value } => {
++                let key = match key {
++                    GenKey::Auto => { let k = gs.auto_key; gs.auto_key += 1; Zval::Long(k) }
++                    GenKey::Keyed(Zval::Long(n)) => { if n >= gs.auto_key { gs.auto_key = n.wrapping_add(1); } Zval::Long(n) }
++                    GenKey::Keyed(k) | GenKey::Verbatim(k) => k,
++                };
++                gs.cur_key = key;
++                gs.cur_val = value;
++                gs.status = GenStatus::Suspended;
++            }
++            RunExit::Returned(value) => {
++                gs.ret = value;
++                gs.cur_key = Zval::Null;
++                gs.cur_val = Zval::Null;
++                gs.status = GenStatus::Done;
++            }
++            RunExit::Suspended { .. } => unreachable!("handled by the Fiber driver"),
++        }
++    }
++
++    pub(super) fn generator_result(&mut self, rc: &Rc<RefCell<GenState>>, method: &[u8]) -> Result<Zval, PhpError> {
++        let gs = rc.borrow();
++        match method {
++            b"current" | b"send" => Ok(gs.cur_val.clone()),
++            b"key" => Ok(gs.cur_key.clone()),
++            b"valid" => Ok(Zval::Bool(!matches!(gs.status, GenStatus::Done))),
++            b"next" => Ok(Zval::Null),
++            b"rewind" if !gs.advanced => Ok(Zval::Null),
++            b"rewind" => { drop(gs); Err(self.gen_exception("Cannot rewind a generator that was already run")) }
++            b"getreturn" if matches!(gs.status, GenStatus::Done) => Ok(gs.ret.clone()),
++            b"getreturn" => { drop(gs); Err(self.gen_exception("Cannot get return value of a generator that hasn't returned")) }
++            _ => Err(PhpError::Error(format!("Call to undefined method Generator::{}()", String::from_utf8_lossy(method)))),
++        }
++    }
++
++    fn finish_generator_drive(&mut self, drive: GeneratorDrive) -> Result<(), PhpError> {
++        match drive.after {
++            GeneratorAfter::Foreach { value, key, end } => {
++                let gs = drive.generator.borrow();
++                let f = &mut self.frames[drive.consumer];
++                if matches!(gs.status, GenStatus::Done) { f.ip = end as usize; }
++                else {
++                    store_slot(&mut f.slots[value as usize], gs.cur_val.deref_clone());
++                    if let Some(key) = key { store_slot(&mut f.slots[key as usize], gs.cur_key.clone()); }
++                }
++            }
++            GeneratorAfter::YieldFrom => {
++                let f = &mut self.frames[drive.consumer];
++                f.ext_mut().generator_ready = true;
++                f.ip -= 1;
++            }
++            GeneratorAfter::Method { method, next } => {
++                if let Some(value) = next {
++                    self.resume_generator_with(&drive.generator, value, Some(GeneratorAfter::Method {
++                        method: method.clone(), next: None,
++                    }))?;
++                }
++                let value = self.generator_result(&drive.generator, &method)?;
++                self.frames[drive.consumer].stack.push(value);
++            }
++        }
++        Ok(())
++    }
++
++fn discard_generator_drive(&mut self, drive: GeneratorDrive) {
++        if let GeneratorAfter::Method { next: Some(value), .. } = drive.after {
++            self.gc_note(&value);
++        }
++        let (key, value) = {
++            let mut gs = drive.generator.borrow_mut();
++            gs.status = GenStatus::Done;
++            (std::mem::replace(&mut gs.cur_key, Zval::Null),
++             std::mem::replace(&mut gs.cur_val, Zval::Null))
++        };
++        self.gc_note(&key);
++        self.gc_note(&value);
++    }
++
++    pub(super) fn discard_generator_captures(&mut self, baseline: usize) {
++        let captures = std::mem::take(&mut self.suspension_drives);
++        for drive in captures {
++            if drive.baseline >= baseline { self.discard_generator_drive(drive); }
++            else { self.suspension_drives.push(drive); }
++        }
++    }
++
++    pub(super) fn run_fiber_segment(&mut self, id: u32, baseline: usize) -> Result<RunExit, PhpError> {
++        // A nested Fiber owns its capture list independently of its caller.
++        let caller_captures = std::mem::take(&mut self.suspension_drives);
++        let mut drives = std::mem::take(&mut self.fibers.get_mut(&id).expect("fiber state").generator_drives);
++        let mut pending_error = None;
++        let result = loop {
++            let floor = drives.first().map_or(baseline, |d| d.baseline);
++            let outcome = match pending_error.take() {
++                Some(error) => Err(error),
++                None => self.run_loop(floor),
++            };
++            match outcome {
++                Ok(RunExit::Suspended { value }) | Err(PhpError::FiberSuspend(value)) => {
++                    let mut captured = std::mem::take(&mut self.suspension_drives);
++                    captured.append(&mut drives);
++                    for drive in &mut captured {
++                        drive.baseline -= baseline;
++                        drive.consumer -= baseline;
++                    }
++                    let frames = self.frames.split_off(baseline);
++                    let state = self.fibers.get_mut(&id).expect("fiber state");
++                    state.parked = frames;
++                    state.generator_drives = captured;
++                    break Ok(RunExit::Suspended { value });
++                }
++                Ok(exit) if !drives.is_empty() => {
++                    let drive = drives.remove(0);
++                    self.accept_generator_exit(&drive.generator, exit);
++                    if let Err(error) = self.finish_generator_drive(drive) { pending_error = Some(error); }
++                }
++                Ok(exit) => break Ok(exit),
++                Err(error) => {
++                    if let Some(error) = self.unwind(error, floor) {
++                        if drives.is_empty() { break Err(error); }
++                        let drive = drives.remove(0);
++                        while self.frames.len() > floor {
++                            let frame = self.frames.pop().expect("generator frame");
++                            self.gc_note_frame(&frame);
++                            self.recycle_frame(frame);
++                        }
++                        self.discard_generator_drive(drive);
++                        pending_error = Some(error);
++                    }
++                }
++            }
++        };
++        self.suspension_drives = caller_captures;
++        result
++    }
++}

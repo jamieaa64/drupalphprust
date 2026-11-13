@@ -73,6 +73,32 @@ COPY patches/xmlwriter-memory.patch /tmp/xmlwriter-memory.patch
 RUN git apply --check /tmp/xmlwriter-memory.patch && git apply /tmp/xmlwriter-memory.patch
 COPY patches/callable-unpack-reference.patch /tmp/callable-unpack-reference.patch
 RUN git apply --check /tmp/callable-unpack-reference.patch && git apply /tmp/callable-unpack-reference.patch
+COPY patches/fiber-generator-continuation.patch /tmp/fiber-generator-continuation.patch
+RUN git apply --check /tmp/fiber-generator-continuation.patch && git apply /tmp/fiber-generator-continuation.patch
+COPY patches/dom-namespace-axis.patch /tmp/dom-namespace-axis.patch
+RUN git apply --check /tmp/dom-namespace-axis.patch && git apply /tmp/dom-namespace-axis.patch
+COPY patches/preg-extended-comments.patch /tmp/preg-extended-comments.patch
+RUN git apply --check /tmp/preg-extended-comments.patch && git apply /tmp/preg-extended-comments.patch
+COPY patches/multisort-stringable.patch /tmp/multisort-stringable.patch
+RUN git apply --check /tmp/multisort-stringable.patch && git apply /tmp/multisort-stringable.patch
+COPY patches/user-wrapper-write.patch /tmp/user-wrapper-write.patch
+RUN git apply --check /tmp/user-wrapper-write.patch && git apply /tmp/user-wrapper-write.patch
+COPY patches/stream-wrapper-registry.patch /tmp/stream-wrapper-registry.patch
+RUN git apply --check /tmp/stream-wrapper-registry.patch && git apply /tmp/stream-wrapper-registry.patch
+COPY patches/fiber-generator-collector.patch /tmp/fiber-generator-collector.patch
+RUN git apply --check /tmp/fiber-generator-collector.patch && git apply /tmp/fiber-generator-collector.patch
+COPY patches/ref-builtin-field-spread.patch /tmp/ref-builtin-field-spread.patch
+RUN git apply --check /tmp/ref-builtin-field-spread.patch && git apply /tmp/ref-builtin-field-spread.patch
+COPY patches/function-reference-forward.patch /tmp/function-reference-forward.patch
+RUN git apply --check /tmp/function-reference-forward.patch && git apply /tmp/function-reference-forward.patch
+COPY patches/static-reference-value.patch /tmp/static-reference-value.patch
+RUN git apply --check /tmp/static-reference-value.patch && git apply /tmp/static-reference-value.patch
+COPY patches/preg-binary-replacement.patch /tmp/preg-binary-replacement.patch
+RUN git apply --check /tmp/preg-binary-replacement.patch && git apply /tmp/preg-binary-replacement.patch
+COPY patches/date-current-errors.patch /tmp/date-current-errors.patch
+RUN git apply --check /tmp/date-current-errors.patch && git apply /tmp/date-current-errors.patch
+COPY patches/mb-stringable.patch /tmp/mb-stringable.patch
+RUN git apply --check /tmp/mb-stringable.patch && git apply /tmp/mb-stringable.patch
 WORKDIR /src/php-rust
 ARG RUNTIME_PROFILE=release
 RUN --mount=type=cache,target=/usr/local/cargo/registry --mount=type=cache,target=/usr/local/cargo/git --mount=type=cache,target=/out CARGO_TARGET_DIR=/out cargo build --locked --profile "$RUNTIME_PROFILE" -p php-cli -p php-server && mkdir /dist && cp "/out/$RUNTIME_PROFILE/phpr" "/out/$RUNTIME_PROFILE/php-server" /dist/

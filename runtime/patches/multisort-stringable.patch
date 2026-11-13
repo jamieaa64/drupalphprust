@@ -1,0 +1,88 @@
+diff --git a/php-rust/crates/php-runtime/src/vm/host.rs b/php-rust/crates/php-runtime/src/vm/host.rs
+--- a/php-rust/crates/php-runtime/src/vm/host.rs
++++ b/php-rust/crates/php-runtime/src/vm/host.rs
+@@ -5028,8 +5028,6 @@
+     /// `i`-th argument (None for a flag argument); the VM writes each back into
+     /// its by-ref slot. Numeric keys are renumbered from 0, string keys preserved.
+     ///
+-    /// SORT_NATURAL is compared as SORT_STRING (a documented residual); the other
+-    /// flags are byte-identical.
+     pub(super) fn ho_array_multisort(
+         &mut self,
+         args: Vec<Zval>,
+@@ -5149,10 +5147,10 @@
+         // coercion happens here, before the sort closure).
+         enum SortKey {
+             Num(f64),
+-            Bytes(Vec<u8>),
++            Bytes(Zval),
+             // Raw bytes compared with `strnatcmp`; case-folding is done inside
+             // `natcmp`, so these are not pre-lowercased.
+-            Natural(Vec<u8>),
++            Natural(Zval),
+             Regular(Zval),
+         }
+         let mut col_keys: Vec<Vec<SortKey>> = Vec::with_capacity(arrays.len());
+@@ -5162,14 +5160,10 @@
+                 let key = match a.sort_type & !SORT_FLAG_CASE {
+                     SORT_NUMERIC => SortKey::Num(convert::to_double(v)),
+                     SORT_NATURAL => {
+-                        SortKey::Natural(convert::to_zstr(v, &mut self.diags).as_bytes().to_vec())
++                        SortKey::Natural(v.clone())
+                     }
+                     SORT_STRING | SORT_LOCALE_STRING => {
+-                        let mut b = convert::to_zstr(v, &mut self.diags).as_bytes().to_vec();
+-                        if a.sort_type & SORT_FLAG_CASE != 0 {
+-                            b.make_ascii_lowercase();
+-                        }
+-                        SortKey::Bytes(b)
++                        SortKey::Bytes(v.clone())
+                     }
+                     _ => SortKey::Regular(v.clone()),
+                 };
+@@ -5183,16 +5177,32 @@
+         let mut order: Vec<usize> = (0..array_size).collect();
+         // Confronto loose SORT_REGULAR: non-totale sui tipi misti — merge
+         // sort tollerante come zend_sort (WP-16).
++        let mut comparison_error = None;
+         php_types::ops::stable_sort_by(&mut order, |&ra, &rb| {
++            if comparison_error.is_some() { return std::cmp::Ordering::Equal; }
+             for (j, a) in arrays.iter().enumerate() {
+                 let c = match (&col_keys[j][ra], &col_keys[j][rb]) {
+                     (SortKey::Num(x), SortKey::Num(y)) => {
+                         x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal)
+                     }
+-                    (SortKey::Bytes(x), SortKey::Bytes(y)) => x.cmp(y),
+-                    (SortKey::Natural(x), SortKey::Natural(y)) => {
+-                        php_types::ops::natcmp(x, y, a.sort_type & SORT_FLAG_CASE != 0).cmp(&0)
+-                    }
++                    (SortKey::Bytes(x), SortKey::Bytes(y)) | (SortKey::Natural(x), SortKey::Natural(y)) => {
++                        let compared = (|| -> Result<std::cmp::Ordering, PhpError> {
++                            let mut left = self.vm_stringify(x)?.as_bytes().to_vec();
++                            let mut right = self.vm_stringify(y)?.as_bytes().to_vec();
++                            if a.sort_type & !SORT_FLAG_CASE == SORT_NATURAL {
++                                return Ok(php_types::ops::natcmp(&left, &right, a.sort_type & SORT_FLAG_CASE != 0).cmp(&0));
++                            }
++                            if a.sort_type & SORT_FLAG_CASE != 0 {
++                                left.make_ascii_lowercase();
++                                right.make_ascii_lowercase();
++                            }
++                            Ok(left.cmp(&right))
++                        })();
++                        match compared {
++                            Ok(order) => order,
++                            Err(error) => { comparison_error = Some(error); return std::cmp::Ordering::Equal; }
++                        }
++                    },
+                     (SortKey::Regular(x), SortKey::Regular(y)) => {
+                         php_types::ops::compare(x, y).cmp(&0)
+                     }
+@@ -5205,6 +5215,8 @@
+             }
+             ra.cmp(&rb)
+         });
++
++        if let Some(error) = comparison_error { return Err(error); }
+ 
+         // Rebuild each array in the sorted order: numeric keys renumber from 0,
+         // string keys are preserved.

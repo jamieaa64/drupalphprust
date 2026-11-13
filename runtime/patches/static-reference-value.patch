@@ -1,0 +1,42 @@
+diff --git a/php-rust/crates/php-runtime/src/compile/expr.rs b/php-rust/crates/php-runtime/src/compile/expr.rs
+--- a/php-rust/crates/php-runtime/src/compile/expr.rs
++++ b/php-rust/crates/php-runtime/src/compile/expr.rs
+@@ -703,6 +703,9 @@
+                         }
+                     }
+                 }
++                // A value expression copies a returned reference, as an
++                // instance call does. Explicit reference binds remove this.
++                self.emit(Op::DerefTop);
+             }
+             ExprKind::StaticCallDyn { class, method, args, named } => {
+                 // `$cls::$m()` / `Class::$m()` / `self::$m()`: the method name is a
+@@ -743,6 +746,7 @@
+                         });
+                     }
+                 }
++                self.emit(Op::DerefTop);
+             }
+             ExprKind::ParentHookCall { class, prop, set, args } => {
+                 // `parent::$prop::get()` / `parent::$prop::set($v)` (PHP 8.4). The
+diff --git a/php-rust/crates/php-runtime/src/compile/assign.rs b/php-rust/crates/php-runtime/src/compile/assign.rs
+--- a/php-rust/crates/php-runtime/src/compile/assign.rs
++++ b/php-rust/crates/php-runtime/src/compile/assign.rs
+@@ -380,12 +380,14 @@
+     }
+ 
+     pub(super) fn assign_ref_call(&mut self, target: &Place, call: &Expr) -> R<()> {
+-        // Static dispatch preserves a method's returned reference. Reuse its
+-        // normal argument/class resolution, then bind the result with the same
+-        // runtime check used for instance and dynamic calls.
++        // Reuse static dispatch's argument/class resolution, but retain the
++        // returned cell for an explicit reference bind.
+         if matches!(call.kind, ExprKind::StaticCall { .. } | ExprKind::StaticCallDyn { .. }) {
+             let (base, steps) = self.field_path(target)?;
+             self.expr(call)?;
++            debug_assert!(matches!(self.ops.last(), Some(Op::DerefTop)));
++            self.ops.pop();
++            self.lines.pop();
+             self.emit(Op::BindRefToChecked { base, steps: steps.into(), context: 0 });
+             return Ok(());
+         }

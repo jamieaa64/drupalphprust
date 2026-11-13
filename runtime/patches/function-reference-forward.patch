@@ -1,0 +1,50 @@
+diff --git a/php-rust/crates/php-runtime/src/compile/mod.rs b/php-rust/crates/php-runtime/src/compile/mod.rs
+--- a/php-rust/crates/php-runtime/src/compile/mod.rs
++++ b/php-rust/crates/php-runtime/src/compile/mod.rs
+@@ -1290,12 +1290,26 @@
+             }
+             StmtKind::Return(opt) => {
+                 let reference_call = self.returns_ref && opt.as_ref().is_some_and(|e| matches!(e.kind,
+-                    ExprKind::MethodCall { nullsafe: false, .. } | ExprKind::StaticCall { .. } | ExprKind::StaticCallDyn { .. }));
++                    ExprKind::Call { .. } | ExprKind::CallDynamic { .. } | ExprKind::MethodCall { nullsafe: false, .. } | ExprKind::StaticCall { .. } | ExprKind::StaticCallDyn { .. }));
+                 if reference_call {
+                     let temp = self.alloc_temp();
+                     let place = Place { base: PlaceBase::Local(temp), steps: Vec::new() };
+-                    self.assign_ref_call(&place, opt.as_ref().expect("reference call"))?;
+-                    if let Some(Op::BindRefToChecked { context, .. }) = self.ops.last_mut() { *context = 1; }
++                    let call = opt.as_ref().expect("reference call");
++                    if matches!(call.kind, ExprKind::Call { .. } | ExprKind::CallDynamic { .. }) {
++                        let start = self.ops.len();
++                        self.expr(call)?;
++                        // Named and positional function lowering adds a final
++                        // value-context dereference. A reference return keeps
++                        // that cell, while preserving all ordinary argument binding.
++                        if self.ops.len() > start && matches!(self.ops.last(), Some(Op::DerefTop)) {
++                            self.ops.pop();
++                            self.lines.pop();
++                        }
++                        self.emit(Op::BindRefToChecked { base: FieldBase::Local(temp), steps: [].into(), context: 1 });
++                    } else {
++                        self.assign_ref_call(&place, call)?;
++                        if let Some(Op::BindRefToChecked { context, .. }) = self.ops.last_mut() { *context = 1; }
++                    }
+                     self.emit(Op::Pop);
+                     self.emit(Op::PushRef(temp));
+                     self.clear_temp_binding(temp);
+diff --git a/php-rust/crates/php-runtime/src/compile/expr.rs b/php-rust/crates/php-runtime/src/compile/expr.rs
+--- a/php-rust/crates/php-runtime/src/compile/expr.rs
++++ b/php-rust/crates/php-runtime/src/compile/expr.rs
+@@ -976,10 +976,11 @@
+             // (the callee is known), PAR.
+             // A spread anywhere (`f(...$src)`, with or without named args) needs
+             // run-time binding: integer keys become positional, string keys named.
+-            // By-value callees only (by-ref + spread is out of slice).
++            // By-reference parameters still need element writeback support.
++            // A reference return is already preserved by emit_call_spread.
+             if args.iter().any(|a| matches!(a.kind, ExprKind::Spread(_))) {
+                 let callee = &self.ctx.funcs[idx];
+-                if callee.by_ref || callee.params.iter().any(|p| p.by_ref) {
++                if callee.params.iter().any(|p| p.by_ref) {
+                     // KNOWN by-ref callee + spread stays with the TREE-WALKER:
+                     // it implements element write-back through a by-ref
+                     // variadic (`test1(...$array)` mutates `$array`,

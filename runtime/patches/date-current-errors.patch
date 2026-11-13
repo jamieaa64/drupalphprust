@@ -1,0 +1,47 @@
+diff --git a/php-rust/crates/php-builtins/src/date.rs b/php-rust/crates/php-builtins/src/date.rs
+--- a/php-rust/crates/php-builtins/src/date.rs
++++ b/php-rust/crates/php-builtins/src/date.rs
+@@ -164,6 +164,13 @@
+     out.insert(Key::from_bytes(b"error_count"), Zval::Long(st.errors.len() as i64));
+     out.insert(Key::from_bytes(b"errors"), fill(&st.errors));
+     Ok(Zval::Array(Rc::new(out)))
++}
++
++/// Clear diagnostics for the constructor's successful current-time fast path.
++/// Mutators such as setTimestamp do not parse and must retain existing errors.
++pub fn __date_clear_last_errors(_args: &[Zval], _ctx: &mut Ctx) -> Result<Zval, PhpError> {
++    LAST_DATE_ERRORS.with(|state| *state.borrow_mut() = None);
++    Ok(Zval::Null)
+ }
+ 
+ const MONTHS_FULL: [&str; 12] = [
+diff --git a/php-rust/crates/php-builtins/src/lib.rs b/php-rust/crates/php-builtins/src/lib.rs
+--- a/php-rust/crates/php-builtins/src/lib.rs
++++ b/php-rust/crates/php-builtins/src/lib.rs
+@@ -156,6 +156,7 @@
+     add(b"__interval_format", date::__interval_format);
+     add(b"__date_from_format", date::__date_from_format);
+     add(b"__date_get_last_errors", date::__date_get_last_errors);
++    add(b"__date_clear_last_errors", date::__date_clear_last_errors);
+     add(b"__tz_offset", date::__tz_offset);
+     add(b"__tz_wall_ts", date::__tz_wall_ts);
+     add(b"__tz_transition", date::__tz_transition);
+diff --git a/php-rust/crates/php-runtime/src/lower/prelude/date.php b/php-rust/crates/php-runtime/src/lower/prelude/date.php
+--- a/php-rust/crates/php-runtime/src/lower/prelude/date.php
++++ b/php-rust/crates/php-runtime/src/lower/prelude/date.php
+@@ -112,6 +112,7 @@
+         // timestamp's "+00:00") overrides both (PHP quirk).
+         $this->__tz = $timezone !== null ? $timezone->getName() : date_default_timezone_get();
+         if ($datetime === "now" || $datetime === "" || $datetime === null) {
++            __date_clear_last_errors();
+             $t = microtime(true);
+             $this->__ts = (int) $t;
+             $this->__us = (int) round(($t - (int) $t) * 1000000);
+@@ -352,6 +353,7 @@
+         // Same zone-resolution order as DateTime::__construct.
+         $this->__tz = $timezone !== null ? $timezone->getName() : date_default_timezone_get();
+         if ($datetime === "now" || $datetime === "" || $datetime === null) {
++            __date_clear_last_errors();
+             $t = microtime(true);
+             $this->__ts = (int) $t;
+             $this->__us = (int) round(($t - (int) $t) * 1000000);

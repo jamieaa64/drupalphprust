@@ -133,6 +133,58 @@
     {
       "file": "callable-unpack-reference.patch",
       "sha256": "74459b0f47a92ea72c45889ce2dc928d15127050f0c72e2ccf78bf68df77c89e"
+    },
+    {
+      "file": "fiber-generator-continuation.patch",
+      "sha256": "d2eef214def7953e184b0378988c70455c331f6108a9dfc533ee44264b984e7d"
+    },
+    {
+      "file": "dom-namespace-axis.patch",
+      "sha256": "1457f74d069e693734de95a97ded335f143c067f052e26410c08a5043dca5fe2"
+    },
+    {
+      "file": "preg-extended-comments.patch",
+      "sha256": "d43c82f0c728dc51c5247a326c647e0e692ccbf6d804d6d5040492697bc9acd7"
+    },
+    {
+      "file": "multisort-stringable.patch",
+      "sha256": "9e11dd12c5de9432776723a133de9deeaaa0f6ae1dcbd3cf87d00c01a5f41d04"
+    },
+    {
+      "file": "user-wrapper-write.patch",
+      "sha256": "83a53b3aa4c67a76f280243e54518d8974eee8785174bcbdbabf06592cfc7264"
+    },
+    {
+      "file": "stream-wrapper-registry.patch",
+      "sha256": "412b5337e2fb4db87685dc5e9006d2d81a531ee2d610f7863673d953e3df6e8c"
+    },
+    {
+      "file": "fiber-generator-collector.patch",
+      "sha256": "6800ed0e858ee71ff363b71ff3c7acb42bea27b8a7c51dd3c01ceab8ecfbca18"
+    },
+    {
+      "file": "ref-builtin-field-spread.patch",
+      "sha256": "f8bb35d3e7d3af472a571f7607327e45020192ce15d194c225592b4d7da82ae5"
+    },
+    {
+      "file": "function-reference-forward.patch",
+      "sha256": "35efe4ae5898252b9acad0e070a0e68f7291da58f7dc339cdea80303efb3a68e"
+    },
+    {
+      "file": "static-reference-value.patch",
+      "sha256": "757e821680948abf69fa5f254abbffdcf9296805ffcdf6647c73a04aeaf178d2"
+    },
+    {
+      "file": "preg-binary-replacement.patch",
+      "sha256": "36a8bc9bcee1decb86e7db51b6e00525d487661ca8c2a57165ccae6c10b1461d"
+    },
+    {
+      "file": "date-current-errors.patch",
+      "sha256": "eff9f8bd8323ff1d604332b007bb97b20907ec8d0cffea8f3149d4dec16b57d4"
+    },
+    {
+      "file": "mb-stringable.patch",
+      "sha256": "c94101fd42f21ad76f42d0aefc08ea59c0cf551e60e23a03290dff1af2af5937"
     }
   ]
 }
