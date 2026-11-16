@@ -69,6 +69,9 @@ is optional and is not invoked by our portable installer.
 
 ## Work locally, update remotely
 
+For simultaneous local/Coder agents, follow [the PR workflow](COLLABORATION.md):
+one task, branch and checkout per agent; user-controlled publishing and merging.
+
 Use Git for source changes. The user performs pushes/authentication:
 
 ```bash

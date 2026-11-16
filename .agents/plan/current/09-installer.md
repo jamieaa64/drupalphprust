@@ -4,7 +4,7 @@ Status: active
 
 Destination: This repository
 
-Local installation completed. Tracker landing and completion text are implemented locally; automatic local hostname setup is implemented and the existing-site hook passes; fresh-install and Coder acceptance remain open.
+Local tracker/hostname setup works. Fresh-install and Coder acceptance remain open.
 
 ## Work
 
@@ -21,6 +21,10 @@ Local installation completed. Tracker landing and completion text are implemente
 - Add-on installation/removal, Compose rendering and native deletion failure/success verified with isolated DDEV 1.25.5 fixture. Full fresh installation/browser checks remain open. See [receipt](../../../docs/receipts/2026-11-12-native-ddev-addon.md).
 
 - Added early DDEV version check with user-run upgrade/trust commands. Native DDEV version constraint enforces the stop before Drupal installation, because OLI hooks are best-effort. Five isolated prerequisite tests pass; see [receipt](../../../docs/receipts/2026-11-12-ddev-prerequisite.md).
+
+- Project Serena launchers suppress browser auto-opening; documented the separate
+  host preference that caused repeated dashboard tabs. Local preference corrected;
+  tracker launch unchanged. [Receipt](../../../docs/receipts/2026-11-16-serena-auto-open.md).
 
 ## Test / finish
 
@@ -39,6 +43,6 @@ Local installation completed. Tracker landing and completion text are implemente
 
 ## Upstream
 
-No upstream change is needed for the requested manual-upgrade guidance and native version constraint. OLI support for aborting before any scaffold is created remains optional; automatic upgrades are outside the requested behavior. Nothing submitted.
+No upstream change needed for manual-upgrade guidance or native version constraints. Earlier installer abort remains optional; automatic upgrades are excluded. Nothing submitted.
 
 [Overall plan](README.md) · [Previous](08-optional-cms-gaps.md) · [Next](10-coder-tracker.md) · [Evidence / guidance](../../../docs/USAGE.md)

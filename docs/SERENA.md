@@ -114,7 +114,19 @@ Open `ddev serena-dashboard`, or use the Serena dashboard card in the tracker.
 The stable route is `https://serena.<project-host>/dashboard/index.html` (scheme
 and port follow DDEV). The service dashboard displays the shared HTTP server's
 configuration, tool usage and logs. It does not aggregate separate host STDIO
-processes or the Mac-installed Serena dashboard at port 24282.
+processes or a separately installed host Serena dashboard. Local host dashboard
+ports can vary between sessions.
+
+Both project launchers disable browser auto-opening. If a separate host Serena
+keeps opening tabs when an agent connects, set `web_dashboard_open_on_launch: false`
+in that host installation's `~/.serena/serena_config.yml`, then reconnect that MCP
+server. A running instance retains its loaded preference; use its dashboard
+setting to disable automatic opening there too, or reconnect it. For an existing
+host MCP command, explicitly append `--open-web-dashboard false` to its
+`serena start-mcp-server` arguments so future starts also suppress opening.
+Keep `web_dashboard: true` if you want manual dashboard access. This setting
+does not change the installer's tracker launch. See the
+[local diagnosis](receipts/2026-11-16-serena-auto-open.md).
 
 OLI's normal pre-completion hostname hook registers the Serena alias through
 DDEV along with the site/tracker aliases. Any administrator authentication stays
@@ -140,3 +152,17 @@ source archive from a digest-pinned official PHP image. Run
 `bash scripts/test-runtime-upstream.sh` from the project to use the upstream
 Cargo/differential harness with `PHP_ORACLE` set and oracle skipping disabled.
 This does not change Drupal's web PHP version. See [testing](TESTING.md).
+
+## Multiple agents in Coder
+
+Use the installer-configured `drupalphprust-serena` connection for this project.
+No separate native Serena installation is needed. A host/Coder VM agent uses the
+STDIO wrapper, which disables its dashboard; an agent inside DDEV uses the
+internal HTTP service. That shared service exposes one optional dashboard but
+never opens it automatically. Extra globally configured native Serena servers
+are independent and can open their own tabs; inspect those entries if duplicates
+appear. Port numbers alone do not distinguish native and forwarded services.
+
+Keep source work on separate branches/checkouts and coordinate through
+[GitHub PRs](COLLABORATION.md). Do not share a writable Rust checkout or database
+between concurrently editing agents.

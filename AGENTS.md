@@ -47,6 +47,14 @@ Working rules:
 This repository supersedes migration-oriented notes from the original parent folder.
 Its local parent location is historical only and is not a runtime dependency.
 
+## Concurrent local and Coder work
+
+Follow `docs/COLLABORATION.md`: one numbered task, `codex/<topic>` branch and
+checkout per agent. Coordinate shared runtime patch files before editing. Use
+project PRs targeting `jamieaa64/drupalphprust:main`; user handles authentication,
+pushes and merges. This does not authorize PHP Rust upstream submissions.
+Use `.github/pull_request_template.md` and record exact tests and known failures.
+
 ## Coder target
 
 Use the existing **DDEV Freeform** template (`freeform`), whose upstream source is

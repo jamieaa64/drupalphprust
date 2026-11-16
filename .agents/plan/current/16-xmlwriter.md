@@ -55,10 +55,10 @@ The user handles authentication and pushes; no upstream submission yet.
 
 ## Initial reproduction on phprusttest1 (2026-11-12, before the patch)
 
-The 31-patch candidate returned HTTP 500 for missing XMLWriter. The independent
-sitemap fixture passed Zend and exited 255 on Rust at its subclass declaration.
-This historical baseline is preserved in the
+The missing-class HTTP 500 baseline and independent fixture are preserved in the
 [reproduction receipt](../../../docs/receipts/2026-11-12-phprusttest1-xmlwriter.md).
+
+Patches: xmlwriter-memory.patch
 
 [Overall plan](README.md) · [Runtime completion](01-fiber-generators.md) ·
 [Installation evidence](../../../docs/receipts/2026-11-12-tracker-landing.md)

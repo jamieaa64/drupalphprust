@@ -23,6 +23,11 @@ See [receipt](../../../docs/receipts/2026-11-12-serena-dashboard.md) and
 - Add optional tracker startup/restart handling and an app resource to existing freeform.
 - Keep installation independent of Coder credentials and template ownership.
 
+- Added the [local/Coder PR workflow](../../../docs/COLLABORATION.md), project PR
+  template and Serena configuration-isolation checks in GitHub CI. Separate
+  branches/checkouts own tasks; the user publishes and merges. Actual Coder
+  execution and repository branch protection remain unverified.
+
 ## Test / finish
 
 - Check private button access, Markdown refresh and workspace restart.
