@@ -31,6 +31,10 @@ Upstream status is separate: not submitted, prepared, submitted, then merged
 16. [Implement XMLWriter for out-of-box Drupal CMS](16-xmlwriter.md)
 17. [Resolve runtime release gate failures](17-release-gates.md)
 
+Coordination: [GitHub issue #1](https://github.com/jamieaa64/drupalphprust/issues/1)
+assigns Coder/OLI tasks 09–10 to Claude and runtime task 17 to Codex.
+Record branches, base commits and blockers in the issue before overlapping work.
+
 The current installation has completed login, dashboard, Utility-page creation,
 editing, publishing and anonymous viewing on PHP Rust. The saved page survives a
 service restart. See the [current receipt](../../../docs/receipts/2026-11-13-authenticated-runtime.md)

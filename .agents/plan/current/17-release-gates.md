@@ -10,6 +10,9 @@ This task owns the implementation needed to resolve those failures, rather than
 adding a separate task merely for running tests. See the
 [exact result and command](../../../docs/receipts/2026-11-13-authenticated-runtime.md).
 
+Owner: Codex locally. Claude owns Coder tasks 09–10; coordinate shared files
+through the [issue 1 handoff](../../../docs/issues/coder-freeform-integration.md).
+
 ## Work
 
 - Correct opcode census accounting: `op_index_maps_sampled_variants_in_range`

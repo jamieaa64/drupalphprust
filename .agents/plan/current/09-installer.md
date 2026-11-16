@@ -6,6 +6,8 @@ Destination: This repository
 
 Local tracker/hostname setup works. Fresh-install and Coder acceptance remain open.
 
+Owner: Claude in Coder; coordinate via [issue 1 handoff](../../../docs/issues/coder-freeform-integration.md).
+
 ## Work
 
 - Finish the canonical repository-based install and fix failures in the owning component.

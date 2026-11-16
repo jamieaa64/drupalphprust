@@ -60,10 +60,14 @@ when the task requires them.
 Branch protection and required-review settings have not been inspected or changed.
 Do not assume a green GitHub check or this document enforces merge approval.
 
-## Suggested Coder handoff
+## Current Coder handoff
 
-Start with task 17 (release failures) only if no other agent owns it. Use
-`codex/release-gates` from current main, connect the project Serena MCP, read the
-upstream process, and keep one adversarial reviewer. The local dashboard/PR
-workflow change is separate. Record the base SHA and task ownership in the PR;
-do not start overlapping runtime patches concurrently.
+[GitHub issue #1](https://github.com/jamieaa64/drupalphprust/issues/1) assigns
+Claude the Coder/OLI work in tasks 09–10, on `codex/coder-freeform-integration`.
+Codex retains task 17's runtime release fixes. This replaces the earlier suggestion
+that the Coder agent start task 17. Claim scope/base SHA in the issue before editing,
+coordinate shared files there, and link each PR and evidence receipt.
+
+The issue was published through the existing GitHub CLI session. GitHub MCP reads
+worked, but issue creation returned 403 `Resource not accessible by integration`.
+Do not infer connector write access from the repository's account permission flags.

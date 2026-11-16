@@ -18,6 +18,8 @@ aliases. Existing Mac hostname registration still needs the user's terminal.
 See [receipt](../../../docs/receipts/2026-11-12-serena-dashboard.md) and
 [Freeform instructions](../../../docs/CODER-SERENA.md).
 
+Owner: Claude in Coder; coordinate via [issue 1 handoff](../../../docs/issues/coder-freeform-integration.md).
+
 ## Work
 
 - Add optional tracker startup/restart handling and an app resource to existing freeform.
